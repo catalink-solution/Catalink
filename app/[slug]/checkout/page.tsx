@@ -4,7 +4,7 @@ import { use, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useCart } from "@/components/storefront/cart-context";
+import { useCart, lineId } from "@/components/storefront/cart-context";
 import {
   getCheckoutAttribution,
   syncAbandonedCartContact,
@@ -72,6 +72,8 @@ export default function CheckoutPage({
       product_id: i.productId,
       quantity: i.quantity,
       size: i.size ?? "",
+      sku_id: i.skuId ?? "",
+      variant_label: i.variantLabel ?? "",
     }));
 
     const contact = phone.trim() || email.trim();
@@ -270,13 +272,17 @@ export default function CheckoutPage({
             <div className="space-y-3">
               {items.map((item) => (
                 <div
-                  key={`${item.productId}-${item.size ?? ""}`}
+                  key={lineId(item)}
                   className="flex justify-between gap-3 text-sm"
                 >
                   <span className="min-w-0 text-white/70">
                     <span className="font-medium text-white">{item.quantity}×</span>{" "}
                     {item.name}
-                    {item.size && <span className="text-white/40"> ({item.size})</span>}
+                    {item.variantLabel ? (
+                      <span className="text-white/40"> ({item.variantLabel})</span>
+                    ) : (
+                      item.size && <span className="text-white/40"> ({item.size})</span>
+                    )}
                   </span>
                   <span className="whitespace-nowrap font-medium">
                     {formatPrice(item.price * item.quantity)}

@@ -341,7 +341,11 @@ export default function OrdersPage() {
                       <span>
                         <span className="font-medium text-white">{item.quantity}×</span>{" "}
                         {item.product_name}
-                        {item.size && <span className="text-white/40"> ({item.size})</span>}
+                        {item.variant_label ? (
+                          <span className="text-white/40"> ({item.variant_label})</span>
+                        ) : (
+                          item.size && <span className="text-white/40"> ({item.size})</span>
+                        )}
                       </span>
                       <span className="whitespace-nowrap">
                         {formatPrice(item.unit_price * item.quantity)}

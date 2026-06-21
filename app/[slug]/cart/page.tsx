@@ -3,7 +3,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
-import { useCart } from "@/components/storefront/cart-context";
+import { useCart, lineId } from "@/components/storefront/cart-context";
 import { formatPrice } from "@/lib/format";
 
 export default function CartPage({
@@ -42,7 +42,7 @@ export default function CartPage({
           <div className="space-y-3">
             {items.map((item) => (
               <div
-                key={`${item.productId}-${item.size ?? ""}`}
+                key={lineId(item)}
                 className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.02] p-3"
               >
                 <div className="h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl bg-white/5">
@@ -60,13 +60,17 @@ export default function CartPage({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="truncate font-semibold">{item.name}</p>
-                      {item.size && (
-                        <p className="text-xs text-white/40">Taille : {item.size}</p>
+                      {item.variantLabel ? (
+                        <p className="text-xs text-white/40">{item.variantLabel}</p>
+                      ) : (
+                        item.size && (
+                          <p className="text-xs text-white/40">Taille : {item.size}</p>
+                        )
                       )}
                     </div>
                     <button
                       type="button"
-                      onClick={() => removeItem(item.productId, item.size)}
+                      onClick={() => removeItem(lineId(item))}
                       className="btn-icon-touch text-white/40 hover:text-red-400"
                       aria-label="Retirer"
                     >
@@ -78,9 +82,7 @@ export default function CartPage({
                     <div className="inline-flex items-center rounded-lg border border-white/15 bg-white/5">
                       <button
                         type="button"
-                        onClick={() =>
-                          updateQuantity(item.productId, item.size, item.quantity - 1)
-                        }
+                        onClick={() => updateQuantity(lineId(item), item.quantity - 1)}
                         className="btn-icon-touch px-2.5 py-1.5 text-white/70 hover:text-white"
                         aria-label="Diminuer"
                       >
@@ -91,9 +93,7 @@ export default function CartPage({
                       </span>
                       <button
                         type="button"
-                        onClick={() =>
-                          updateQuantity(item.productId, item.size, item.quantity + 1)
-                        }
+                        onClick={() => updateQuantity(lineId(item), item.quantity + 1)}
                         className="btn-icon-touch px-2.5 py-1.5 text-white/70 hover:text-white"
                         aria-label="Augmenter"
                       >

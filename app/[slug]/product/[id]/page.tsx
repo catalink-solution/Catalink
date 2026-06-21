@@ -6,11 +6,30 @@ import { supabase } from "@/lib/supabase";
 import { formatPrice } from "@/lib/format";
 import { AddToCart } from "@/components/storefront/add-to-cart";
 import { ProductGallery } from "@/components/storefront/product-gallery";
+import { VariantProduct } from "@/components/storefront/variant-product";
 import { SINGLE_SIZE } from "@/lib/stock";
-import type { Product, ProductImage, ProductVariant, Shop } from "@/lib/types";
+import type {
+  Product,
+  ProductImage,
+  ProductVariant,
+  ProductAttribute,
+  ProductAttributeValue,
+  ProductSku,
+  ProductSkuValue,
+  ProductSkuImage,
+  Shop,
+} from "@/lib/types";
 
 type PageProps = {
   params: Promise<{ slug: string; id: string }>;
+};
+
+const EMPTY_VARIANTS = {
+  attributes: [] as ProductAttribute[],
+  values: [] as ProductAttributeValue[],
+  skus: [] as ProductSku[],
+  skuValues: [] as ProductSkuValue[],
+  skuImages: [] as ProductSkuImage[],
 };
 
 async function getData(slug: string, id: string) {
@@ -20,7 +39,7 @@ async function getData(slug: string, id: string) {
     .eq("slug", slug)
     .maybeSingle();
   const shop = shopData as Shop | null;
-  if (!shop) return { shop: null, product: null, images: [], variants: [] };
+  if (!shop) return { shop: null, product: null, images: [], variants: [], variantData: EMPTY_VARIANTS };
 
   const { data: productData } = await supabase
     .from("products")
@@ -31,18 +50,43 @@ async function getData(slug: string, id: string) {
     .maybeSingle();
 
   const product = productData as Product | null;
-  if (!product) return { shop, product: null, images: [], variants: [] };
+  if (!product) return { shop, product: null, images: [], variants: [], variantData: EMPTY_VARIANTS };
 
   const [{ data: imgs }, { data: vars }] = await Promise.all([
     supabase.from("product_images").select("*").eq("product_id", id).order("position", { ascending: true }),
     supabase.from("product_variants").select("*").eq("product_id", id),
   ]);
 
+  let variantData = EMPTY_VARIANTS;
+  if (product.has_variants) {
+    const [{ data: attrs }, { data: attrValues }, { data: skus }, { data: skuValues }, { data: skuImages }] =
+      await Promise.all([
+        supabase.from("product_attributes").select("*").eq("product_id", id).order("position", { ascending: true }),
+        supabase.from("product_attribute_values").select("*"),
+        supabase.from("product_skus").select("*").eq("product_id", id),
+        supabase.from("product_sku_values").select("*"),
+        supabase.from("product_sku_images").select("*"),
+      ]);
+    const attributes = (attrs ?? []) as ProductAttribute[];
+    const attrIds = new Set(attributes.map((a) => a.id));
+    const values = ((attrValues ?? []) as ProductAttributeValue[]).filter((v) => attrIds.has(v.attribute_id));
+    const skuList = (skus ?? []) as ProductSku[];
+    const skuIds = new Set(skuList.map((s) => s.id));
+    variantData = {
+      attributes,
+      values,
+      skus: skuList,
+      skuValues: ((skuValues ?? []) as ProductSkuValue[]).filter((l) => skuIds.has(l.sku_id)),
+      skuImages: ((skuImages ?? []) as ProductSkuImage[]).filter((i) => skuIds.has(i.sku_id)),
+    };
+  }
+
   return {
     shop,
     product,
     images: (imgs ?? []) as ProductImage[],
     variants: (vars ?? []) as ProductVariant[],
+    variantData,
   };
 }
 
@@ -58,7 +102,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductPage({ params }: PageProps) {
   const { slug, id } = await params;
-  const { shop, product, images, variants } = await getData(slug, id);
+  const { shop, product, images, variants, variantData } = await getData(slug, id);
 
   if (!shop || !product) notFound();
 
@@ -68,6 +112,40 @@ export default async function ProductPage({ params }: PageProps) {
       : product.image_url
         ? [product.image_url]
         : [];
+
+  const hasV3 = product.has_variants && variantData.skus.length > 0;
+
+  if (hasV3) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">
+        <div className="py-5">
+          <Link
+            href={`/${slug}`}
+            className="inline-flex items-center gap-2 text-sm text-white/50 transition-colors hover:text-white"
+          >
+            <ArrowLeft size={16} /> Retour à la boutique
+          </Link>
+        </div>
+        <VariantProduct
+          slug={slug}
+          product={{
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            description: product.description,
+            category: product.category,
+            image_url: product.image_url,
+          }}
+          baseImages={galleryImages}
+          attributes={variantData.attributes}
+          values={variantData.values}
+          skus={variantData.skus}
+          skuValues={variantData.skuValues}
+          skuImages={variantData.skuImages}
+        />
+      </div>
+    );
+  }
 
   const stockMap: Record<string, number> = {};
   for (const v of variants) stockMap[v.size] = v.stock;

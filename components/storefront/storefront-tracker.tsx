@@ -21,6 +21,8 @@ function cartPayload(items: CartItem[]) {
     size: i.size ?? "",
     price: i.price,
     image_url: i.imageUrl,
+    sku_id: i.skuId ?? "",
+    variant_label: i.variantLabel ?? "",
   }));
 }
 

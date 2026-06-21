@@ -82,6 +82,8 @@ export function AddToCart({
         price: product.price,
         imageUrl: product.image_url,
         size,
+        skuId: null,
+        variantLabel: null,
       },
       quantity
     );

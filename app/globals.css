@@ -122,6 +122,29 @@ button {
   border-color: var(--brand-secondary);
 }
 
+/* Dashboard — safe-area iPhone : le header ne passe jamais sous la barre d'état */
+.dashboard-nav {
+  padding-top: max(0.75rem, env(safe-area-inset-top));
+}
+
+@media (min-width: 768px) {
+  .dashboard-nav {
+    padding-top: 1.25rem;
+  }
+}
+
+/* Menu horizontal mobile : scroll fluide, onglets jamais coupés */
+.dashboard-tabs {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  scroll-padding-inline: 0.5rem;
+  overscroll-behavior-x: contain;
+}
+
+.dashboard-tabs::-webkit-scrollbar {
+  display: none;
+}
+
 /* Login — 16px min évite le zoom auto iOS qui casse les taps */
 .login-page .login-field {
   font-size: 16px;

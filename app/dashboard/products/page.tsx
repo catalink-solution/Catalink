@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Wand2, Plus, ArrowRight } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { categoryLimit, canCreateCategory, planLabel } from "@/lib/subscription";
 import { MAIN_CATEGORIES, sizesForMain } from "@/lib/categories";
@@ -11,6 +13,13 @@ import {
   totalStock,
 } from "@/lib/stock";
 import type { ProductCategory, ProductImage, ProductVariant } from "@/lib/types";
+import { VariantEditor } from "@/components/dashboard/variant-editor";
+import {
+  EMPTY_VARIANT_DRAFT,
+  loadProductVariants,
+  saveProductVariants,
+  type VariantDraft,
+} from "@/lib/variant-store";
 
 type Product = {
   id: string;
@@ -24,6 +33,7 @@ type Product = {
   sizes: string[] | null;
   is_active: boolean;
   track_stock: boolean;
+  has_variants: boolean;
 };
 
 const NEW_CATEGORY_VALUE = "__new__";
@@ -49,6 +59,8 @@ export default function ProductsPage() {
   const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
   const [trackStock, setTrackStock] = useState(false);
   const [stockBySize, setStockBySize] = useState<Record<string, string>>({});
+  const [variantDraft, setVariantDraft] = useState<VariantDraft>(EMPTY_VARIANT_DRAFT);
+  const [showManual, setShowManual] = useState(false);
   const [message, setMessage] = useState("");
 
   // ─── Suppression ─────────────────────────────────────────────────────────
@@ -68,6 +80,7 @@ export default function ProductsPage() {
   const [editUploading, setEditUploading] = useState(false);
   const [editTrackStock, setEditTrackStock] = useState(false);
   const [editStockBySize, setEditStockBySize] = useState<Record<string, string>>({});
+  const [editVariantDraft, setEditVariantDraft] = useState<VariantDraft>(EMPTY_VARIANT_DRAFT);
   const [editSaving, setEditSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -338,6 +351,7 @@ export default function ProductsPage() {
     const newId = (inserted as { id: string }).id;
     await saveImages(newId, images);
     await saveVariants(newId, trackStock, selectedSizes, stockBySize);
+    await saveProductVariants(newId, variantDraft);
 
     setName("");
     setPrice("");
@@ -349,6 +363,7 @@ export default function ProductsPage() {
     setSelectedSizes([]);
     setTrackStock(false);
     setStockBySize({});
+    setVariantDraft(EMPTY_VARIANT_DRAFT);
     setMessage("Produit ajouté avec succès.");
 
     await loadProducts(shopId);
@@ -411,6 +426,11 @@ export default function ProductsPage() {
     const vmap: Record<string, string> = {};
     for (const v of variantsByProduct[product.id] ?? []) vmap[v.size] = String(v.stock);
     setEditStockBySize(vmap);
+
+    setEditVariantDraft(EMPTY_VARIANT_DRAFT);
+    if (product.has_variants) {
+      loadProductVariants(product.id).then(setEditVariantDraft);
+    }
 
     setEditError(null);
   }
@@ -480,6 +500,7 @@ export default function ProductsPage() {
 
     await saveImages(editingProduct.id, editImages);
     await saveVariants(editingProduct.id, editTrackStock, editSelectedSizes, editStockBySize);
+    await saveProductVariants(editingProduct.id, editVariantDraft);
 
     setEditSaving(false);
 
@@ -500,8 +521,68 @@ export default function ProductsPage() {
         </span>
       </div>
 
-      {/* ── Formulaire ajout ── */}
-      <div className="max-w-2xl border border-white/10 rounded-2xl p-6 mb-10">
+      {/* ── Bloc d'action : Ajouter un produit ── */}
+      <div className="mb-10 max-w-3xl">
+        <h2 className="mb-4 text-lg font-bold text-white/90">Ajouter un produit</h2>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {/* Ajout manuel */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowManual((v) => !v);
+              if (!showManual)
+                requestAnimationFrame(() =>
+                  document.getElementById("manual-form")?.scrollIntoView({ behavior: "smooth", block: "start" })
+                );
+            }}
+            className={`group flex flex-col items-start rounded-2xl border p-5 text-left transition-all ${
+              showManual
+                ? "border-white/25 bg-white/[0.04]"
+                : "border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]"
+            }`}
+          >
+            <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
+              <Plus size={20} />
+            </span>
+            <span className="font-bold">Ajouter manuellement</span>
+            <span className="mt-1 text-sm text-white/50">
+              Crée une fiche produit une par une (nom, prix, photos, variantes…).
+            </span>
+            <span className="mt-3 text-sm font-medium text-white/70 group-hover:text-white">
+              {showManual ? "Masquer le formulaire" : "Ouvrir le formulaire"}
+            </span>
+          </button>
+
+          {/* AI Import — plus visible */}
+          <Link
+            href="/dashboard/products/ai-import"
+            className="group relative flex flex-col items-start overflow-hidden rounded-2xl border border-violet-500/40 p-5 text-left transition-all hover:border-violet-400 hover:shadow-[0_0_30px_-8px_rgba(124,58,237,0.6)]"
+            style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(59,130,246,0.10))" }}
+          >
+            <span className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-violet-500/20 blur-2xl transition-opacity group-hover:opacity-100" />
+            <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-lg">
+              <Wand2 size={20} />
+            </span>
+            <span className="flex items-center gap-2 font-bold">
+              ⚡ AI Import
+              <span className="rounded-full bg-violet-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-100">
+                Premium
+              </span>
+            </span>
+            <span className="mt-1 text-sm text-white/70">
+              Import intelligent de catalogues. Analyse les photos, détecte les produits,
+              regroupe les variantes et pré-remplit les fiches automatiquement.
+            </span>
+            <span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition-colors group-hover:bg-violet-500">
+              Importer un catalogue <ArrowRight size={16} />
+            </span>
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Formulaire ajout (manuel, repliable) ── */}
+      {showManual && (
+      <div id="manual-form" className="max-w-2xl border border-white/10 rounded-2xl p-6 mb-10">
         <input
           className="w-full mb-3 p-3 rounded-xl bg-white/10 border border-white/10"
           placeholder="Nom du produit"
@@ -639,7 +720,7 @@ export default function ProductsPage() {
         )}
 
         {/* Tailles (selon catégorie principale) */}
-        {availableSizes.length > 0 && (
+        {!variantDraft.enabled && availableSizes.length > 0 && (
           <div className="mb-4">
             <p className="text-white/70 mb-2">Tailles disponibles</p>
             <div className="flex flex-wrap gap-2">
@@ -661,45 +742,52 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {/* Gestion du stock */}
-        <div className="mb-4 rounded-xl border border-white/10 p-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={trackStock}
-              onChange={(e) => setTrackStock(e.target.checked)}
-              className="h-4 w-4 accent-violet-600"
-            />
-            <span className="text-sm text-white/80">Gérer le stock de ce produit</span>
-          </label>
-          {trackStock && (
-            <div className="mt-3">
-              <p className="mb-2 text-xs text-white/50">
-                {selectedSizes.length > 0
-                  ? "Stock par taille :"
-                  : "Stock global (aucune taille sélectionnée) :"}
-              </p>
-              <div className="flex flex-wrap gap-3">
-                {stockSizes.map((s) => (
-                  <label key={s} className="flex items-center gap-2">
-                    <span className="text-sm text-white/60 w-20">
-                      {s === SINGLE_SIZE ? "Quantité" : s}
-                    </span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={stockBySize[s] ?? ""}
-                      onChange={(e) =>
-                        setStockBySize((cur) => ({ ...cur, [s]: e.target.value }))
-                      }
-                      placeholder="0"
-                      className="w-20 p-2 rounded-lg bg-white/10 border border-white/10 text-sm"
-                    />
-                  </label>
-                ))}
+        {/* Gestion du stock (système simple, masqué si variantes activées) */}
+        {!variantDraft.enabled && (
+          <div className="mb-4 rounded-xl border border-white/10 p-4">
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={trackStock}
+                onChange={(e) => setTrackStock(e.target.checked)}
+                className="h-4 w-4 accent-violet-600"
+              />
+              <span className="text-sm text-white/80">Gérer le stock de ce produit</span>
+            </label>
+            {trackStock && (
+              <div className="mt-3">
+                <p className="mb-2 text-xs text-white/50">
+                  {selectedSizes.length > 0
+                    ? "Stock par taille :"
+                    : "Stock global (aucune taille sélectionnée) :"}
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {stockSizes.map((s) => (
+                    <label key={s} className="flex items-center gap-2">
+                      <span className="text-sm text-white/60 w-20">
+                        {s === SINGLE_SIZE ? "Quantité" : s}
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={stockBySize[s] ?? ""}
+                        onChange={(e) =>
+                          setStockBySize((cur) => ({ ...cur, [s]: e.target.value }))
+                        }
+                        placeholder="0"
+                        className="w-20 p-2 rounded-lg bg-white/10 border border-white/10 text-sm"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        )}
+
+        {/* Variantes V3 (couleurs, tailles, matières…) */}
+        <div className="mb-4">
+          <VariantEditor draft={variantDraft} onChange={setVariantDraft} uploadImage={uploadOne} />
         </div>
 
         <button
@@ -711,6 +799,7 @@ export default function ProductsPage() {
 
         {message && <p className="mt-4 text-white/70">{message}</p>}
       </div>
+      )}
 
       {/* ── Liste produits ── */}
       <div className="grid md:grid-cols-3 gap-6">
@@ -749,9 +838,14 @@ export default function ProductsPage() {
                   {customName(product.product_custom_category_id)}
                 </span>
               )}
-              {product.track_stock && (
+              {product.track_stock && !product.has_variants && (
                 <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${STOCK_META[level].cls}`}>
                   {STOCK_META[level].label} · {total}
+                </span>
+              )}
+              {product.has_variants && (
+                <span className="text-xs px-2.5 py-1 rounded-full font-semibold bg-violet-500/15 text-violet-200">
+                  Variantes
                 </span>
               )}
             </div>
@@ -979,7 +1073,7 @@ export default function ProductsPage() {
               </div>
             )}
 
-            {editAvailableSizes.length > 0 && (
+            {!editVariantDraft.enabled && editAvailableSizes.length > 0 && (
               <div>
                 <p className="text-white/70 mb-2 text-sm">Tailles disponibles</p>
                 <div className="flex flex-wrap gap-2">
@@ -1001,44 +1095,53 @@ export default function ProductsPage() {
               </div>
             )}
 
-            {/* Gestion du stock */}
-            <div className="rounded-xl border border-white/10 p-3">
-              <label className="flex items-center gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={editTrackStock}
-                  onChange={(e) => setEditTrackStock(e.target.checked)}
-                  className="h-4 w-4 accent-violet-600"
-                />
-                <span className="text-sm text-white/80">Gérer le stock</span>
-              </label>
-              {editTrackStock && (
-                <div className="mt-3">
-                  <p className="mb-2 text-xs text-white/50">
-                    {editSelectedSizes.length > 0 ? "Stock par taille :" : "Stock global :"}
-                  </p>
-                  <div className="flex flex-wrap gap-3">
-                    {editStockSizes.map((s) => (
-                      <label key={s} className="flex items-center gap-2">
-                        <span className="text-sm text-white/60 w-20">
-                          {s === SINGLE_SIZE ? "Quantité" : s}
-                        </span>
-                        <input
-                          type="number"
-                          min="0"
-                          value={editStockBySize[s] ?? ""}
-                          onChange={(e) =>
-                            setEditStockBySize((cur) => ({ ...cur, [s]: e.target.value }))
-                          }
-                          placeholder="0"
-                          className="w-20 p-2 rounded-lg bg-white/10 border border-white/10 text-sm"
-                        />
-                      </label>
-                    ))}
+            {/* Gestion du stock (système simple, masqué si variantes activées) */}
+            {!editVariantDraft.enabled && (
+              <div className="rounded-xl border border-white/10 p-3">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editTrackStock}
+                    onChange={(e) => setEditTrackStock(e.target.checked)}
+                    className="h-4 w-4 accent-violet-600"
+                  />
+                  <span className="text-sm text-white/80">Gérer le stock</span>
+                </label>
+                {editTrackStock && (
+                  <div className="mt-3">
+                    <p className="mb-2 text-xs text-white/50">
+                      {editSelectedSizes.length > 0 ? "Stock par taille :" : "Stock global :"}
+                    </p>
+                    <div className="flex flex-wrap gap-3">
+                      {editStockSizes.map((s) => (
+                        <label key={s} className="flex items-center gap-2">
+                          <span className="text-sm text-white/60 w-20">
+                            {s === SINGLE_SIZE ? "Quantité" : s}
+                          </span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={editStockBySize[s] ?? ""}
+                            onChange={(e) =>
+                              setEditStockBySize((cur) => ({ ...cur, [s]: e.target.value }))
+                            }
+                            placeholder="0"
+                            className="w-20 p-2 rounded-lg bg-white/10 border border-white/10 text-sm"
+                          />
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
+
+            {/* Variantes V3 */}
+            <VariantEditor
+              draft={editVariantDraft}
+              onChange={setEditVariantDraft}
+              uploadImage={uploadOne}
+            />
 
             <div className="flex gap-3 pt-2">
               <button

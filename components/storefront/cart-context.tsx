@@ -16,6 +16,10 @@ export type CartItem = {
   price: number;
   imageUrl: string | null;
   size: string | null;
+  /** Variante V3 sélectionnée (null pour les produits simples). */
+  skuId: string | null;
+  /** Libellé lisible de la variante (ex : « Noir / 42 »). */
+  variantLabel: string | null;
   quantity: number;
 };
 
@@ -24,8 +28,8 @@ type CartContextValue = {
   totalQuantity: number;
   totalPrice: number;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
-  updateQuantity: (productId: string, size: string | null, quantity: number) => void;
-  removeItem: (productId: string, size: string | null) => void;
+  updateQuantity: (lineId: string, quantity: number) => void;
+  removeItem: (lineId: string) => void;
   clear: () => void;
 };
 
@@ -35,8 +39,13 @@ function storageKey(slug: string) {
   return `catalink_cart_${slug}`;
 }
 
-function sameLine(a: CartItem, productId: string, size: string | null) {
-  return a.productId === productId && (a.size ?? "") === (size ?? "");
+/** Identifiant unique d'une ligne de panier (produit + variante + taille). */
+export function lineId(item: {
+  productId: string;
+  skuId?: string | null;
+  size?: string | null;
+}): string {
+  return `${item.productId}::${item.skuId ?? ""}::${item.size ?? ""}`;
 }
 
 export function CartProvider({
@@ -70,7 +79,8 @@ export function CartProvider({
 
   const addItem = useCallback<CartContextValue["addItem"]>((item, quantity = 1) => {
     setItems((prev) => {
-      const idx = prev.findIndex((p) => sameLine(p, item.productId, item.size));
+      const id = lineId(item);
+      const idx = prev.findIndex((p) => lineId(p) === id);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], quantity: next[idx].quantity + quantity };
@@ -81,20 +91,18 @@ export function CartProvider({
   }, []);
 
   const updateQuantity = useCallback<CartContextValue["updateQuantity"]>(
-    (productId, size, quantity) => {
+    (id, quantity) => {
       setItems((prev) =>
         prev
-          .map((p) =>
-            sameLine(p, productId, size) ? { ...p, quantity: Math.max(0, quantity) } : p
-          )
+          .map((p) => (lineId(p) === id ? { ...p, quantity: Math.max(0, quantity) } : p))
           .filter((p) => p.quantity > 0)
       );
     },
     []
   );
 
-  const removeItem = useCallback<CartContextValue["removeItem"]>((productId, size) => {
-    setItems((prev) => prev.filter((p) => !sameLine(p, productId, size)));
+  const removeItem = useCallback<CartContextValue["removeItem"]>((id) => {
+    setItems((prev) => prev.filter((p) => lineId(p) !== id));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);

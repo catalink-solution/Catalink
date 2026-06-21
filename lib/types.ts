@@ -34,15 +34,61 @@ export type Product = {
   sizes: string[] | null;
   is_active: boolean;
   track_stock: boolean;
+  has_variants: boolean;
   related_product_ids: string[] | null;
   created_at: string | null;
 };
 
+/** Legacy size-only stock entry (système actuel, conservé). */
 export type ProductVariant = {
   id: string;
   product_id: string;
   size: string;
   stock: number;
+};
+
+// ─── Système de variantes V3 (multi-attributs, type Shopify) ────────────────
+
+export type ProductAttribute = {
+  id: string;
+  product_id: string;
+  name: string;
+  position: number;
+  created_at: string | null;
+};
+
+export type ProductAttributeValue = {
+  id: string;
+  attribute_id: string;
+  value: string;
+  /** Code couleur HEX (#RRGGBB) pour l'attribut « Couleur ». Null sinon. */
+  hex: string | null;
+  position: number;
+  created_at: string | null;
+};
+
+/** Une combinaison concrète (ex : Noir / 42). `price` null = prix de base produit. */
+export type ProductSku = {
+  id: string;
+  product_id: string;
+  sku: string | null;
+  price: number | null;
+  stock_quantity: number;
+  active: boolean;
+  created_at: string | null;
+};
+
+export type ProductSkuValue = {
+  sku_id: string;
+  attribute_value_id: string;
+};
+
+export type ProductSkuImage = {
+  id: string;
+  sku_id: string;
+  image_url: string;
+  sort_order: number;
+  created_at: string | null;
 };
 
 export type ProductImage = {
@@ -97,6 +143,8 @@ export type OrderItem = {
   size: string | null;
   quantity: number;
   unit_price: number;
+  sku_id: string | null;
+  variant_label: string | null;
   created_at: string | null;
 };
 
