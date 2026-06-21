@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Wand2, Plus, ArrowRight } from "lucide-react";
+import { Wand2, ArrowRight, Layers } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { categoryLimit, canCreateCategory, planLabel } from "@/lib/subscription";
 import { MAIN_CATEGORIES, sizesForMain } from "@/lib/categories";
@@ -60,7 +60,6 @@ export default function ProductsPage() {
   const [trackStock, setTrackStock] = useState(false);
   const [stockBySize, setStockBySize] = useState<Record<string, string>>({});
   const [variantDraft, setVariantDraft] = useState<VariantDraft>(EMPTY_VARIANT_DRAFT);
-  const [showManual, setShowManual] = useState(false);
   const [message, setMessage] = useState("");
 
   // ─── Suppression ─────────────────────────────────────────────────────────
@@ -521,67 +520,35 @@ export default function ProductsPage() {
         </span>
       </div>
 
-      {/* ── Bloc d'action : Ajouter un produit ── */}
-      <div className="mb-10 max-w-3xl">
-        <h2 className="mb-4 text-lg font-bold text-white/90">Ajouter un produit</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Ajout manuel */}
-          <button
-            type="button"
-            onClick={() => {
-              setShowManual((v) => !v);
-              if (!showManual)
-                requestAnimationFrame(() =>
-                  document.getElementById("manual-form")?.scrollIntoView({ behavior: "smooth", block: "start" })
-                );
-            }}
-            className={`group flex flex-col items-start rounded-2xl border p-5 text-left transition-all ${
-              showManual
-                ? "border-white/25 bg-white/[0.04]"
-                : "border-white/10 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]"
-            }`}
-          >
-            <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/80">
-              <Plus size={20} />
+      {/* ── Import intelligent (AI Import) ── */}
+      <div
+        className="relative mb-8 max-w-3xl overflow-hidden rounded-2xl border border-violet-500/40 p-6"
+        style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.20), rgba(59,130,246,0.10))" }}
+      >
+        <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/25 blur-3xl" />
+        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-lg">
+              <Wand2 size={24} />
             </span>
-            <span className="font-bold">Ajouter manuellement</span>
-            <span className="mt-1 text-sm text-white/50">
-              Crée une fiche produit une par une (nom, prix, photos, variantes…).
-            </span>
-            <span className="mt-3 text-sm font-medium text-white/70 group-hover:text-white">
-              {showManual ? "Masquer le formulaire" : "Ouvrir le formulaire"}
-            </span>
-          </button>
-
-          {/* AI Import — plus visible */}
+            <div>
+              <h2 className="text-xl font-extrabold tracking-tight">Import intelligent</h2>
+              <p className="mt-1 max-w-md text-sm text-white/70">
+                Importe plusieurs photos et laisse l’IA créer les produits automatiquement.
+              </p>
+            </div>
+          </div>
           <Link
             href="/dashboard/products/ai-import"
-            className="group relative flex flex-col items-start overflow-hidden rounded-2xl border border-violet-500/40 p-5 text-left transition-all hover:border-violet-400 hover:shadow-[0_0_30px_-8px_rgba(124,58,237,0.6)]"
-            style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(59,130,246,0.10))" }}
+            className="btn-touch inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-violet-500 hover:shadow-[0_0_30px_-6px_rgba(124,58,237,0.7)]"
           >
-            <span className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-violet-500/20 blur-2xl transition-opacity group-hover:opacity-100" />
-            <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-white shadow-lg">
-              <Wand2 size={20} />
-            </span>
-            <span className="flex items-center gap-2 font-bold">
-              ⚡ AI Import
-              <span className="rounded-full bg-violet-500/30 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-100">
-                Premium
-              </span>
-            </span>
-            <span className="mt-1 text-sm text-white/70">
-              Import intelligent de catalogues. Analyse les photos, détecte les produits,
-              regroupe les variantes et pré-remplit les fiches automatiquement.
-            </span>
-            <span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition-colors group-hover:bg-violet-500">
-              Importer un catalogue <ArrowRight size={16} />
-            </span>
+            ⚡ AI Import <ArrowRight size={18} />
           </Link>
         </div>
       </div>
 
-      {/* ── Formulaire ajout (manuel, repliable) ── */}
-      {showManual && (
+      {/* ── Formulaire ajout manuel ── */}
+      <h2 className="mb-4 text-lg font-bold text-white/90">Ajouter un produit manuellement</h2>
       <div id="manual-form" className="max-w-2xl border border-white/10 rounded-2xl p-6 mb-10">
         <input
           className="w-full mb-3 p-3 rounded-xl bg-white/10 border border-white/10"
@@ -785,8 +752,15 @@ export default function ProductsPage() {
           </div>
         )}
 
-        {/* Variantes V3 (couleurs, tailles, matières…) */}
+        {/* Variantes du produit (couleurs, tailles, matières…) */}
         <div className="mb-4">
+          <h3 className="mb-2 flex items-center gap-2 text-base font-bold text-white/90">
+            <Layers size={18} className="text-violet-400" /> Variantes du produit
+          </h3>
+          <p className="mb-3 text-sm text-white/50">
+            Crée un produit simple, ou active les variantes pour gérer plusieurs couleurs,
+            tailles, photos et stocks.
+          </p>
           <VariantEditor draft={variantDraft} onChange={setVariantDraft} uploadImage={uploadOne} />
         </div>
 
@@ -799,7 +773,6 @@ export default function ProductsPage() {
 
         {message && <p className="mt-4 text-white/70">{message}</p>}
       </div>
-      )}
 
       {/* ── Liste produits ── */}
       <div className="grid md:grid-cols-3 gap-6">

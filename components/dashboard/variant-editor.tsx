@@ -132,7 +132,7 @@ export function VariantEditor({ draft, onChange, uploadImage }: Props) {
                   <input
                     value={attr.name}
                     onChange={(e) => setAttrName(i, e.target.value)}
-                    placeholder="Nom de l'attribut (Couleur, Taille, Matière…)"
+                    placeholder="Nom de la variante (Couleur, Taille, Matière…)"
                     className="flex-1 rounded-lg border border-white/10 bg-white/10 p-2 text-sm"
                   />
                   <button
@@ -188,7 +188,7 @@ export function VariantEditor({ draft, onChange, uploadImage }: Props) {
             onClick={addAttribute}
             className="inline-flex items-center gap-2 rounded-xl border border-white/15 px-4 py-2 text-sm font-medium text-white/80 hover:bg-white/5"
           >
-            <Plus size={15} /> Ajouter un attribut
+            <Plus size={15} /> Ajouter une variante
           </button>
 
           {/* Génération — toujours visible quand les variantes sont activées */}
