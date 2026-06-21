@@ -1,0 +1,309 @@
+@import "tailwindcss";
+
+/*
+ * Couleurs de marque — alignées sur le logo officiel Catalink.
+ * Ajustez ces valeurs si besoin après import du fichier logo.
+ */
+:root {
+  --background: #030712;
+  --foreground: #f4f4f5;
+  --muted: #a1a1aa;
+
+  --brand-primary: #4f46e5;
+  --brand-secondary: #7c3aed;
+  --brand-accent: #3b82f6;
+  --brand-light: #a5b4fc;
+  --brand-glow: #818cf8;
+
+  --accent-blue: var(--brand-accent);
+  --accent-violet: var(--brand-secondary);
+  --accent-indigo: var(--brand-primary);
+
+  --surface: rgba(255, 255, 255, 0.03);
+  --surface-border: rgba(255, 255, 255, 0.08);
+  --glow-blue: rgba(59, 130, 246, 0.4);
+  --glow-violet: rgba(124, 58, 237, 0.38);
+  --glow-indigo: rgba(79, 70, 229, 0.32);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-light: var(--brand-light);
+  --color-brand-glow: var(--brand-glow);
+  --color-accent-blue: var(--accent-blue);
+  --color-accent-violet: var(--accent-violet);
+  --color-accent-indigo: var(--accent-indigo);
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  overflow-x: clip;
+  -webkit-tap-highlight-color: rgba(124, 58, 237, 0.2);
+}
+
+/* Decorative backgrounds must never intercept taps (iOS Safari) */
+.landing-glow,
+.landing-grid {
+  pointer-events: none;
+}
+
+/* Reliable mobile taps — use on primary actions and icon controls */
+.btn-touch {
+  touch-action: manipulation;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  z-index: 1;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+button {
+  touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+  .btn-touch,
+  button[type="submit"] {
+    min-height: 48px;
+  }
+
+  .btn-icon-touch {
+    touch-action: manipulation;
+    min-height: 44px;
+    min-width: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* Mobile touch targets — minimum 44px for interactive elements in dashboard/storefront */
+@media (max-width: 768px) {
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+.input {
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.75rem;
+  color: var(--foreground);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.input:focus {
+  border-color: var(--brand-secondary);
+}
+
+/* Login — 16px min évite le zoom auto iOS qui casse les taps */
+.login-page .login-field {
+  font-size: 16px;
+  touch-action: manipulation;
+}
+
+.login-page form,
+.login-page button,
+.login-page input,
+.login-page a {
+  pointer-events: auto;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--brand-primary) 40%, transparent);
+  color: #fff;
+}
+
+.landing-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, black 20%, transparent 70%);
+}
+
+.landing-glow {
+  background:
+    radial-gradient(ellipse 50% 40% at 50% -10%, var(--glow-blue), transparent 60%),
+    radial-gradient(ellipse 40% 30% at 80% 10%, var(--glow-violet), transparent 55%),
+    radial-gradient(ellipse 35% 25% at 10% 20%, var(--glow-indigo), transparent 50%);
+}
+
+.brand-glow {
+  background: radial-gradient(
+    ellipse 70% 50% at 50% 50%,
+    color-mix(in srgb, var(--brand-primary) 28%, transparent),
+    transparent 70%
+  );
+}
+
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    var(--brand-light) 0%,
+    color-mix(in srgb, var(--brand-secondary) 70%, white) 50%,
+    var(--brand-glow) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.gradient-border {
+  position: relative;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-accent) 18%, transparent),
+    color-mix(in srgb, var(--brand-secondary) 10%, transparent)
+  );
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--brand-accent) 55%, transparent),
+    color-mix(in srgb, var(--brand-secondary) 35%, transparent),
+    rgba(255, 255, 255, 0.08)
+  );
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--brand-accent),
+    var(--brand-secondary)
+  );
+  padding: 0.75rem 1.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  box-shadow: 0 10px 30px -5px color-mix(in srgb, var(--brand-primary) 45%, transparent);
+  transition: all 0.2s ease;
+}
+
+.cta-primary:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 15px 35px -5px color-mix(in srgb, var(--brand-primary) 55%, transparent);
+}
+
+.cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 25%, transparent);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.75rem 1.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #d4d4d8;
+  backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.cta-secondary:hover {
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
+  color: white;
+}
+
+.phone-frame {
+  position: relative;
+  border-radius: 2.5rem;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 20%, transparent);
+  background: linear-gradient(145deg, #18181b 0%, #09090b 100%);
+  padding: 0.75rem;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 25px 50px -12px rgba(0, 0, 0, 0.6),
+    0 0 80px -20px color-mix(in srgb, var(--brand-primary) 40%, transparent);
+}
+
+.phone-frame::before {
+  content: "";
+  position: absolute;
+  top: 0.625rem;
+  left: 50%;
+  z-index: 10;
+  height: 1.25rem;
+  width: 5rem;
+  transform: translateX(-50%);
+  border-radius: 9999px;
+  background: #09090b;
+}
+
+.phone-screen {
+  overflow: hidden;
+  border-radius: 2rem;
+  background: #0c0c0f;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
