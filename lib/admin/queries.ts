@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { planMrr, resolvePlan } from "@/lib/subscription";
+import { isAdminEmail } from "./auth";
 import type { AdminStats, AdminUserRow, AdminWaitlistRow, WaitlistStatus } from "./types";
 
 type ShopRow = {
@@ -13,6 +14,24 @@ type ShopRow = {
   subscription_expires_at: string | null;
   created_at: string | null;
 };
+
+type AuthUserRow = {
+  id: string;
+  email?: string;
+  created_at: string;
+  banned_until?: string | null;
+};
+
+function isPlatformAdminUser(user: AuthUserRow): boolean {
+  return isAdminEmail(user.email);
+}
+
+function vendorShops(shops: ShopRow[], authUsers: AuthUserRow[]): ShopRow[] {
+  const adminUserIds = new Set(
+    authUsers.filter(isPlatformAdminUser).map((u) => u.id)
+  );
+  return shops.filter((s) => !s.user_id || !adminUserIds.has(s.user_id));
+}
 
 function isPaidActive(shop: ShopRow): boolean {
   const plan = resolvePlan(shop.plan);
@@ -38,8 +57,8 @@ function accountStatus(shop: ShopRow | null, banned: boolean): AdminUserRow["acc
   return "active";
 }
 
-async function listAllAuthUsers(admin: SupabaseClient) {
-  const users: { id: string; email?: string; created_at: string; banned_until?: string | null }[] = [];
+async function listAllAuthUsers(admin: SupabaseClient): Promise<AuthUserRow[]> {
+  const users: AuthUserRow[] = [];
   let page = 1;
   for (;;) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 100 });
@@ -61,14 +80,22 @@ export async function fetchAdminStats(admin: SupabaseClient): Promise<AdminStats
 
   const [users, shopsRes, productsRes, ordersRes, waitlistRes] = await Promise.all([
     listAllAuthUsers(admin),
-    admin.from("shops").select("id, plan, subscription_status, subscription_expires_at"),
-    admin.from("products").select("id", { count: "exact", head: true }),
-    admin.from("orders").select("id, total, status"),
+    admin.from("shops").select("id, user_id, plan, subscription_status, subscription_expires_at"),
+    admin.from("products").select("id, shop_id"),
+    admin.from("orders").select("id, shop_id, total, status"),
     admin.from("waitlist_requests").select("id, status", { count: "exact" }),
   ]);
 
-  const shops = (shopsRes.data ?? []) as ShopRow[];
-  const orders = (ordersRes.data ?? []) as { id: string; total: number; status: string }[];
+  const allShops = (shopsRes.data ?? []) as ShopRow[];
+  const shops = vendorShops(allShops, users);
+  const vendorShopIds = new Set(shops.map((s) => s.id));
+
+  const products = ((productsRes.data ?? []) as { id: string; shop_id: string }[]).filter((p) =>
+    vendorShopIds.has(p.shop_id)
+  );
+  const orders = ((ordersRes.data ?? []) as { id: string; shop_id: string; total: number; status: string }[]).filter(
+    (o) => vendorShopIds.has(o.shop_id)
+  );
 
   const totalRevenue = orders
     .filter((o) => o.status !== "cancelled")
@@ -100,7 +127,7 @@ export async function fetchAdminStats(admin: SupabaseClient): Promise<AdminStats
   return {
     totalUsers: users.length,
     totalShops: shops.length,
-    totalProducts: productsRes.count ?? 0,
+    totalProducts: products.length,
     totalOrders: orders.length,
     totalRevenue,
     mrr,
@@ -197,25 +224,28 @@ export async function fetchAdminUsers(admin: SupabaseClient): Promise<AdminUserR
 
   return authUsers
     .map((u) => {
-      const shop = shopByUser.get(u.id) ?? null;
+      const isProtectedAdmin = isPlatformAdminUser(u);
+      const shop = isProtectedAdmin ? null : shopByUser.get(u.id) ?? null;
       const banned = Boolean(u.banned_until && new Date(u.banned_until) > new Date());
       const stats = shop ? orderStats.get(shop.id) : null;
 
       return {
         userId: u.id,
         email: u.email ?? "—",
-        name: shop?.name ?? u.email?.split("@")[0] ?? "—",
+        name: isProtectedAdmin ? "Admin plateforme" : shop?.name ?? u.email?.split("@")[0] ?? "—",
         shopId: shop?.id ?? null,
         shopSlug: shop?.slug ?? null,
-        plan: shop?.plan ?? "free",
-        subscriptionStatus: shop?.subscription_status ?? "active",
-        isSuspended: Boolean(shop?.is_suspended || banned),
+        plan: isProtectedAdmin ? "admin" : shop?.plan ?? "free",
+        subscriptionStatus: isProtectedAdmin ? "active" : shop?.subscription_status ?? "active",
+        isSuspended: isProtectedAdmin ? false : Boolean(shop?.is_suspended || banned),
+        isProtectedAdmin,
+        role: isProtectedAdmin ? "platform_admin" : "vendor",
         productCount: shop ? productCount.get(shop.id) ?? 0 : 0,
         orderCount: stats?.count ?? 0,
         revenue: stats?.revenue ?? 0,
         createdAt: u.created_at,
         subscriptionExpiresAt: shop?.subscription_expires_at ?? null,
-        accountStatus: accountStatus(shop, banned),
+        accountStatus: isProtectedAdmin ? "active" : accountStatus(shop, banned),
       } satisfies AdminUserRow;
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());

@@ -6,6 +6,14 @@ import { supabase } from "@/lib/supabase";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
 import { PwaInstallPrompt } from "@/components/dashboard/pwa-install-prompt";
 
+async function fetchAuthContext(token: string) {
+  const res = await fetch("/api/auth/context", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) return null;
+  return res.json() as Promise<{ isPlatformAdmin: boolean; hasShop: boolean }>;
+}
+
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
@@ -20,6 +28,14 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       if (!session) {
         setReady(false);
         router.replace("/login");
+        return;
+      }
+
+      const ctx = await fetchAuthContext(session.access_token);
+      if (cancelled) return;
+
+      if (ctx?.isPlatformAdmin) {
+        router.replace("/admin");
         return;
       }
 

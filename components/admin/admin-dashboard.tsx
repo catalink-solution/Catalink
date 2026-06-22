@@ -135,7 +135,12 @@ export function AdminDashboard() {
     });
     setBusyId(null);
     if (!res.ok) {
-      setError("Action échouée.");
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (res.status === 403 && json.error === "cannot_modify_platform_admin") {
+        setError("Ce compte administrateur plateforme est protégé.");
+      } else {
+        setError("Action échouée.");
+      }
       return;
     }
     await load();
@@ -336,13 +341,21 @@ export function AdminDashboard() {
                   <td className="px-4 py-3 font-medium">{u.name}</td>
                   <td className="px-4 py-3 text-white/70">{u.email}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-xs text-violet-200">
-                      {planLabel(u.plan)}
-                    </span>
-                    <span className="ml-1 text-xs text-white/40">
-                      {SUBSCRIPTION_STATUS_LABELS[u.subscriptionStatus as SubscriptionStatus] ??
-                        u.subscriptionStatus}
-                    </span>
+                    {u.isProtectedAdmin ? (
+                      <span className="rounded-full bg-indigo-500/20 px-2 py-0.5 text-xs font-medium text-indigo-200">
+                        Admin plateforme
+                      </span>
+                    ) : (
+                      <>
+                        <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-xs text-violet-200">
+                          {planLabel(u.plan)}
+                        </span>
+                        <span className="ml-1 text-xs text-white/40">
+                          {SUBSCRIPTION_STATUS_LABELS[u.subscriptionStatus as SubscriptionStatus] ??
+                            u.subscriptionStatus}
+                        </span>
+                      </>
+                    )}
                   </td>
                   <td className="px-4 py-3">{u.productCount}</td>
                   <td className="px-4 py-3">{u.orderCount}</td>
@@ -355,44 +368,52 @@ export function AdminDashboard() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {u.shopSlug && (
-                        <a
-                          href={`/${u.shopSlug}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="rounded-lg border border-white/10 p-1.5 hover:bg-white/5"
-                          title="Voir la boutique"
-                        >
-                          <ExternalLink size={14} />
-                        </a>
-                      )}
-                      {u.accountStatus === "suspended" ? (
-                        <button
-                          type="button"
-                          disabled={busyId === u.userId}
-                          onClick={() => userAction(u, "activate")}
-                          className="rounded-lg border border-green-500/30 px-2 py-1 text-xs text-green-300 hover:bg-green-500/10 disabled:opacity-40"
-                        >
-                          Activer
-                        </button>
+                      {u.isProtectedAdmin ? (
+                        <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs text-indigo-300">
+                          Protégé
+                        </span>
                       ) : (
-                        <button
-                          type="button"
-                          disabled={busyId === u.userId}
-                          onClick={() => userAction(u, "suspend")}
-                          className="rounded-lg border border-red-500/30 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40"
-                        >
-                          Suspendre
-                        </button>
-                      )}
-                      {u.shopId && (
-                        <button
-                          type="button"
-                          onClick={() => openEdit(u)}
-                          className="rounded-lg border border-white/10 px-2 py-1 text-xs hover:bg-white/5"
-                        >
-                          <MoreHorizontal size={14} className="inline" /> Plan
-                        </button>
+                        <>
+                          {u.shopSlug && (
+                            <a
+                              href={`/${u.shopSlug}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="rounded-lg border border-white/10 p-1.5 hover:bg-white/5"
+                              title="Voir la boutique"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                          )}
+                          {u.accountStatus === "suspended" ? (
+                            <button
+                              type="button"
+                              disabled={busyId === u.userId}
+                              onClick={() => userAction(u, "activate")}
+                              className="rounded-lg border border-green-500/30 px-2 py-1 text-xs text-green-300 hover:bg-green-500/10 disabled:opacity-40"
+                            >
+                              Activer
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={busyId === u.userId}
+                              onClick={() => userAction(u, "suspend")}
+                              className="rounded-lg border border-red-500/30 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+                            >
+                              Suspendre
+                            </button>
+                          )}
+                          {u.shopId && (
+                            <button
+                              type="button"
+                              onClick={() => openEdit(u)}
+                              className="rounded-lg border border-white/10 px-2 py-1 text-xs hover:bg-white/5"
+                            >
+                              <MoreHorizontal size={14} className="inline" /> Plan
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>

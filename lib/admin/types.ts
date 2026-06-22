@@ -42,6 +42,8 @@ export type AdminUserRow = {
   createdAt: string;
   subscriptionExpiresAt: string | null;
   accountStatus: "active" | "suspended" | "expired";
+  isProtectedAdmin: boolean;
+  role: "platform_admin" | "vendor";
 };
 
 export type SubscriptionUpdate = {

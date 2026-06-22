@@ -111,6 +111,20 @@ export default function ShopPage() {
     } = await supabase.auth.getUser();
     if (!user) return setMessage("Tu dois être connecté.");
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (sessionData.session?.access_token) {
+      const ctxRes = await fetch("/api/auth/context", {
+        headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
+      });
+      if (ctxRes.ok) {
+        const ctx = (await ctxRes.json()) as { isPlatformAdmin: boolean };
+        if (ctx.isPlatformAdmin) {
+          setMessage("Ce compte est réservé à l'administration plateforme. Accède à /admin.");
+          return;
+        }
+      }
+    }
+
     setSaving(true);
 
     const payload = {

@@ -2,6 +2,12 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin/auth";
 import { activateUser, suspendUser, updateSubscription } from "@/lib/admin/actions";
+import {
+  CANNOT_MODIFY_PLATFORM_ADMIN,
+  PlatformAdminProtectedError,
+  isProtectedAdminAction,
+} from "@/lib/admin/protection";
+import { isAdminEmail } from "@/lib/admin/auth";
 
 type RouteParams = { params: Promise<{ userId: string }> };
 
@@ -28,6 +34,17 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
+  const action = body.action ?? "";
+  if (isProtectedAdminAction(action)) {
+    const { data: targetUser, error: userErr } = await admin.auth.admin.getUserById(userId);
+    if (userErr) {
+      return NextResponse.json({ error: userErr.message }, { status: 500 });
+    }
+    if (isAdminEmail(targetUser.user?.email)) {
+      return NextResponse.json({ error: CANNOT_MODIFY_PLATFORM_ADMIN }, { status: 403 });
+    }
+  }
+
   try {
     if (body.action === "suspend") {
       await suspendUser(admin, auth.adminEmail, userId, body.shopId ?? null);
@@ -47,6 +64,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
     return NextResponse.json({ error: "invalid_action" }, { status: 400 });
   } catch (e) {
+    if (e instanceof PlatformAdminProtectedError) {
+      return NextResponse.json({ error: CANNOT_MODIFY_PLATFORM_ADMIN }, { status: 403 });
+    }
     const msg = e instanceof Error ? e.message : "action_failed";
     return NextResponse.json({ error: msg }, { status: 500 });
   }

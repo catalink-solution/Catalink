@@ -1,7 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logAdminAction } from "./queries";
+import { assertNotPlatformAdmin } from "./protection";
 
 const BAN_DURATION = "876000h"; // ~100 ans
+
+async function assertTargetNotPlatformAdmin(
+  admin: SupabaseClient,
+  userId: string
+): Promise<string | undefined> {
+  const { data, error } = await admin.auth.admin.getUserById(userId);
+  if (error) throw error;
+  assertNotPlatformAdmin(data.user?.email);
+  return data.user?.email;
+}
 
 export async function suspendUser(
   admin: SupabaseClient,
@@ -9,6 +20,8 @@ export async function suspendUser(
   userId: string,
   shopId: string | null
 ) {
+  await assertTargetNotPlatformAdmin(admin, userId);
+
   const { error: banErr } = await admin.auth.admin.updateUserById(userId, {
     ban_duration: BAN_DURATION,
   });
@@ -30,6 +43,8 @@ export async function activateUser(
   userId: string,
   shopId: string | null
 ) {
+  await assertTargetNotPlatformAdmin(admin, userId);
+
   const { error: unbanErr } = await admin.auth.admin.updateUserById(userId, {
     ban_duration: "none",
   });
@@ -56,6 +71,9 @@ export async function updateSubscription(
     subscriptionExpiresAt?: string | null;
   }
 ) {
+  const { data: owner } = await admin.auth.admin.getUserById(userId);
+  assertNotPlatformAdmin(owner.user?.email);
+
   const patch: Record<string, unknown> = {};
   if (data.plan != null) patch.plan = data.plan;
   if (data.subscriptionStatus != null) patch.subscription_status = data.subscriptionStatus;
