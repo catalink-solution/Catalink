@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Shield, LayoutDashboard, LogOut } from "lucide-react";
@@ -22,10 +22,14 @@ async function verifyAdminAccess(): Promise<"ok" | "unauthorized" | "forbidden">
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const isDebugPage = pathname === "/admin/debug";
   const [ready, setReady] = useState(false);
   const [email, setEmail] = useState("");
 
   useEffect(() => {
+    if (isDebugPage) return;
+
     let cancelled = false;
 
     async function check() {
@@ -68,7 +72,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, isDebugPage]);
+
+  if (isDebugPage) {
+    return <>{children}</>;
+  }
 
   async function logout() {
     await supabase.auth.signOut();
