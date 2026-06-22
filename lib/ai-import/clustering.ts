@@ -1,12 +1,11 @@
 // Regroupement (clustering) des images analysées en produits + variantes.
-// Score sémantique prioritaire : marque + catégorie + couleur regroupent
-// les photos d'un même produit même sous angles très différents.
+// Équilibre : angles d'un même produit regroupés, produits distincts séparés
+// même s'ils partagent marque / catégorie / couleur.
 
 import type { ImageAnalysis } from "./types";
 import {
   compareImages,
   hammingHex,
-  semanticGroupKey,
   SIMILARITY_THRESHOLD,
   MERGE_THRESHOLD,
   clusterDebugEnabled,
@@ -93,22 +92,25 @@ function shouldDebugComparisons(fileCount: number): boolean {
   return clusterDebugEnabled() || fileCount <= 30;
 }
 
-function scorePair(a: AnalyzedFile, b: AnalyzedFile, threshold: number, debug: boolean): number {
+function pairDecision(
+  a: AnalyzedFile,
+  b: AnalyzedFile,
+  debug: boolean
+): ReturnType<typeof compareImages> {
   return compareImages(toFingerprint(a), toFingerprint(b), {
-    threshold,
     labelA: fileLabel(a),
     labelB: fileLabel(b),
     debug,
-  }).finalScore;
+  });
 }
 
 /**
  * Regroupe les images représentant le même produit.
- * Tolérant aux angles différents : score sémantique prioritaire, seuil 0.55.
+ * Décision via compareImages (score + signaux forts, pas de fusion brand/cat/couleur seule).
  */
 export function groupSimilarImages(
   files: AnalyzedFile[],
-  threshold: number = SIMILARITY_THRESHOLD
+  _threshold: number = SIMILARITY_THRESHOLD
 ): AnalyzedFile[][] {
   const ordered = [...files].sort((a, b) => a.sortOrder - b.sortOrder);
   const groups: AnalyzedFile[][] = [];
@@ -117,46 +119,72 @@ export function groupSimilarImages(
   for (const f of ordered) {
     let bestIdx = -1;
     let bestScore = 0;
+    let bestCmp: ReturnType<typeof compareImages> | null = null;
+
     for (let i = 0; i < groups.length; i++) {
       const members = groups[i];
       const sample =
         members.length <= MEMBERS_TO_COMPARE
           ? members
           : [...members.slice(0, MEMBERS_TO_COMPARE - 2), ...members.slice(-2)];
-      let localBest = 0;
+
       for (const m of sample) {
-        const s = scorePair(f, m, threshold, debug);
-        if (s > localBest) localBest = s;
-        if (localBest >= 0.99) break;
-      }
-      if (localBest > bestScore) {
-        bestScore = localBest;
-        bestIdx = i;
+        const cmp = pairDecision(f, m, debug);
+        if (cmp.decision === "grouped" && cmp.finalScore > bestScore) {
+          bestScore = cmp.finalScore;
+          bestIdx = i;
+          bestCmp = cmp;
+        }
       }
     }
-    if (bestIdx >= 0 && bestScore >= threshold) {
+
+    if (bestIdx >= 0 && bestCmp) {
+      if (debug) {
+        console.info(
+          "[AI Import][cluster]",
+          JSON.stringify({
+            action: "grouped",
+            image: fileLabel(f),
+            intoGroup: bestIdx,
+            finalScore: bestCmp.finalScore,
+            reason: bestCmp.reason,
+            signalsUsed: bestCmp.signalsUsed,
+          })
+        );
+      }
       groups[bestIdx].push(f);
     } else {
+      if (debug) {
+        console.info(
+          "[AI Import][cluster]",
+          JSON.stringify({
+            action: "separated",
+            image: fileLabel(f),
+            reason: bestCmp?.reason ?? "aucun groupe compatible",
+            finalScore: bestCmp?.finalScore ?? null,
+            signalsUsed: bestCmp?.signalsUsed ?? [],
+          })
+        );
+      }
       groups.push([f]);
     }
   }
 
-  let merged = mergeSimilarGroups(groups, threshold, debug);
-  merged = mergeBySemanticKey(merged, MERGE_THRESHOLD, debug);
-  return merged;
+  return mergeSimilarGroups(groups, debug);
 }
 
 /**
- * Fusionne les groupes proches (médoïdes ≥ seuil).
+ * Fusionne les groupes proches (médoïdes compatibles selon compareImages).
  */
 export function mergeSimilarGroups(
   groups: AnalyzedFile[][],
-  threshold: number = MERGE_THRESHOLD,
-  debug: boolean = clusterDebugEnabled()
+  debug: boolean = clusterDebugEnabled(),
+  _threshold: number = MERGE_THRESHOLD
 ): AnalyzedFile[][] {
   let current = groups.map((m) => [...m]);
   let didMerge = true;
   let guard = 0;
+
   while (didMerge && guard++ < 1000) {
     didMerge = false;
     outer: for (let i = 0; i < current.length; i++) {
@@ -164,71 +192,23 @@ export function mergeSimilarGroups(
         const repA = pickCover(current[i]);
         const repB = pickCover(current[j]);
         const cmp = compareImages(toFingerprint(repA), toFingerprint(repB), {
-          threshold,
           labelA: fileLabel(repA),
           labelB: fileLabel(repB),
           debug,
         });
-        if (cmp.finalScore >= threshold) {
-          current[i] = [...current[i], ...current[j]];
-          current.splice(j, 1);
-          didMerge = true;
-          break outer;
-        }
-      }
-    }
-  }
-  return current;
-}
 
-/**
- * Fusion automatique : même brand + category + mainColor → un seul groupe.
- */
-export function mergeBySemanticKey(
-  groups: AnalyzedFile[][],
-  threshold: number = MERGE_THRESHOLD,
-  debug: boolean = clusterDebugEnabled()
-): AnalyzedFile[][] {
-  if (groups.length <= 1) return groups;
-
-  let current = groups.map((g) => [...g]);
-  let didMerge = true;
-  let guard = 0;
-
-  while (didMerge && guard++ < 1000) {
-    didMerge = false;
-    outer: for (let i = 0; i < current.length; i++) {
-      for (let j = i + 1; j < current.length; j++) {
-        const fpA = toFingerprint(pickCover(current[i]));
-        const fpB = toFingerprint(pickCover(current[j]));
-        const keyA = semanticGroupKey(fpA);
-        const keyB = semanticGroupKey(fpB);
-
-        let shouldMerge = false;
-        if (keyA && keyB && keyA === keyB) {
-          shouldMerge = true;
-        } else {
-          const cmp = compareImages(fpA, fpB, {
-            threshold,
-            labelA: `group_${i}`,
-            labelB: `group_${j}`,
-            debug,
-          });
-          if (
-            cmp.brandMatch === true &&
-            cmp.categoryMatch === true &&
-            cmp.colorMatch === true &&
-            cmp.finalScore >= threshold
-          ) {
-            shouldMerge = true;
-          }
-        }
-
-        if (shouldMerge) {
+        if (cmp.decision === "grouped") {
           if (debug) {
             console.info(
-              "[AI Import][cluster-debug] merge groups",
-              JSON.stringify({ groupA: i, groupB: j, keyA, keyB })
+              "[AI Import][cluster]",
+              JSON.stringify({
+                action: "merge_groups",
+                groupA: i,
+                groupB: j,
+                finalScore: cmp.finalScore,
+                reason: cmp.reason,
+                signalsUsed: cmp.signalsUsed,
+              })
             );
           }
           current[i] = [...current[i], ...current[j]];
@@ -305,7 +285,7 @@ function cohesion(members: AnalyzedFile[], cover: AnalyzedFile): number {
   let n = 0;
   for (const m of members) {
     if (m === cover) continue;
-    sum += scorePair(cover, m, SIMILARITY_THRESHOLD, false);
+    sum += pairDecision(cover, m, false).finalScore;
     n++;
   }
   return n === 0 ? 1 : sum / n;
