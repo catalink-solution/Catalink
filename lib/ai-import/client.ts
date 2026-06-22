@@ -135,6 +135,9 @@ export async function createUploadJob(
     await supabase.from("import_files").insert(valid.slice(i, i + 200));
   }
   await supabase.from("import_jobs").update({ total_files: valid.length }).eq("id", jobId);
+  console.info(
+    `[AI Import] Upload terminé : ${valid.length} image(s) reçue(s) pour job ${jobId} (mode ${groupMode}).`
+  );
   return jobId;
 }
 
@@ -169,6 +172,9 @@ export type ProcessProgress = {
   detectedCount: number;
   estimatedSeconds: number;
   done: boolean;
+  imagesReceived?: number;
+  groupsDetected?: number;
+  imagesPerGroup?: { group: string; images: number }[];
 };
 
 /** Boucle de traitement : appelle /process jusqu'à l'état final. */
@@ -195,6 +201,17 @@ export async function runProcessing(
       throw new Error((err as { error?: string }).error ?? `process_${res.status}`);
     }
     const p = (await res.json()) as ProcessProgress;
+    if (p.groupsDetected != null && p.imagesReceived != null) {
+      console.info(
+        `[AI Import] Regroupement : ${p.imagesReceived} image(s) → ${p.groupsDetected} groupe(s) détecté(s).`,
+        p.imagesPerGroup
+      );
+    }
+    if (p.done && p.status === "ready_for_review") {
+      console.info(
+        `[AI Import] Analyse terminée : ${p.totalFiles} image(s), ${p.detectedCount} produit(s) détecté(s) (pas encore publiés).`
+      );
+    }
     onProgress(p);
     if (p.done) return;
     await new Promise((r) => setTimeout(r, 250));

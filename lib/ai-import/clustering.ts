@@ -1,13 +1,15 @@
 // Regroupement (clustering) des images analysées en produits + variantes.
-// Pur (sans I/O) pour rester testable et indépendant du fournisseur IA.
-// Étape clé : groupSimilarImages() regroupe les photos d'un MÊME produit
-// par similarité visuelle (empreinte perceptuelle + couleur + signature IA).
+// Score sémantique prioritaire : marque + catégorie + couleur regroupent
+// les photos d'un même produit même sous angles très différents.
 
 import type { ImageAnalysis } from "./types";
 import {
-  combinedSimilarity,
+  compareImages,
   hammingHex,
+  semanticGroupKey,
   SIMILARITY_THRESHOLD,
+  MERGE_THRESHOLD,
+  clusterDebugEnabled,
   type Fingerprint,
 } from "./similarity";
 
@@ -32,7 +34,6 @@ export type Cluster = {
   category: string | null;
   coverImageUrl: string | null;
   fileIds: string[];
-  /** fileId → libellé de variante (ex : "Noir / 42"). */
   variantLabelByFile: Record<string, string | null>;
   variants: ClusterVariant[];
   colorNames: string[];
@@ -57,47 +58,74 @@ function mostCommon(values: (string | null)[]): string | null {
   return best;
 }
 
-function toFingerprint(f: AnalyzedFile): Fingerprint {
+function extractDetectedText(raw: unknown): string | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const parts = [r.brand, r.model, r.productType, r.text, r.logo].filter(
+    (x) => typeof x === "string" && x.trim()
+  ) as string[];
+  return parts.length ? parts.join(" ") : null;
+}
+
+function fileLabel(f: AnalyzedFile): string {
+  return f.name ?? f.fileId;
+}
+
+export function toFingerprint(f: AnalyzedFile): Fingerprint {
   return {
     phash: f.phash,
     dhash: f.dhash,
-    avgHex: f.avgHex,
+    avgHex: f.avgHex ?? f.analysis.dominantHex,
     name: f.name,
     signature: f.analysis.signature ?? null,
     brand: f.analysis.brand ?? null,
     model: f.analysis.model ?? null,
+    category: f.analysis.category ?? null,
+    productType: f.analysis.productType ?? null,
+    mainColor: f.analysis.colorName ?? null,
+    detectedText: extractDetectedText(f.analysis.raw),
   };
 }
 
-// Nb de membres comparés par groupe (capte les angles variés sans coût O(n²)).
 const MEMBERS_TO_COMPARE = 8;
+
+function shouldDebugComparisons(fileCount: number): boolean {
+  return clusterDebugEnabled() || fileCount <= 30;
+}
+
+function scorePair(a: AnalyzedFile, b: AnalyzedFile, threshold: number, debug: boolean): number {
+  return compareImages(toFingerprint(a), toFingerprint(b), {
+    threshold,
+    labelA: fileLabel(a),
+    labelB: fileLabel(b),
+    debug,
+  }).finalScore;
+}
 
 /**
  * Regroupe les images représentant le même produit.
- * Clustering glouton en un passage : chaque image rejoint le groupe le plus
- * similaire si le score ≥ seuil (80% par défaut), sinon crée un nouveau groupe.
+ * Tolérant aux angles différents : score sémantique prioritaire, seuil 0.55.
  */
 export function groupSimilarImages(
   files: AnalyzedFile[],
   threshold: number = SIMILARITY_THRESHOLD
 ): AnalyzedFile[][] {
   const ordered = [...files].sort((a, b) => a.sortOrder - b.sortOrder);
-  const groups: { members: AnalyzedFile[]; prints: Fingerprint[] }[] = [];
+  const groups: AnalyzedFile[][] = [];
+  const debug = shouldDebugComparisons(files.length);
 
   for (const f of ordered) {
-    const fp = toFingerprint(f);
     let bestIdx = -1;
     let bestScore = 0;
     for (let i = 0; i < groups.length; i++) {
-      const prints = groups[i].prints;
-      // Compare au début + à la fin du groupe (échantillon borné).
-      let localBest = 0;
+      const members = groups[i];
       const sample =
-        prints.length <= MEMBERS_TO_COMPARE
-          ? prints
-          : [...prints.slice(0, MEMBERS_TO_COMPARE - 2), ...prints.slice(-2)];
-      for (const p of sample) {
-        const s = combinedSimilarity(fp, p);
+        members.length <= MEMBERS_TO_COMPARE
+          ? members
+          : [...members.slice(0, MEMBERS_TO_COMPARE - 2), ...members.slice(-2)];
+      let localBest = 0;
+      for (const m of sample) {
+        const s = scorePair(f, m, threshold, debug);
         if (s > localBest) localBest = s;
         if (localBest >= 0.99) break;
       }
@@ -107,37 +135,44 @@ export function groupSimilarImages(
       }
     }
     if (bestIdx >= 0 && bestScore >= threshold) {
-      groups[bestIdx].members.push(f);
-      groups[bestIdx].prints.push(fp);
+      groups[bestIdx].push(f);
     } else {
-      groups.push({ members: [f], prints: [fp] });
+      groups.push([f]);
     }
   }
 
-  // Sécurité : fusionne deux groupes dont les médoïdes dépassent le seuil.
-  return mergeSimilarGroups(groups.map((g) => g.members), threshold);
+  let merged = mergeSimilarGroups(groups, threshold, debug);
+  merged = mergeBySemanticKey(merged, MERGE_THRESHOLD, debug);
+  return merged;
 }
 
 /**
- * Fusionne les groupes trop proches (similarité des médoïdes ≥ seuil).
- * Évite qu'un même produit reste éclaté en plusieurs groupes (sécurité demandée).
+ * Fusionne les groupes proches (médoïdes ≥ seuil).
  */
 export function mergeSimilarGroups(
   groups: AnalyzedFile[][],
-  threshold: number = SIMILARITY_THRESHOLD
+  threshold: number = MERGE_THRESHOLD,
+  debug: boolean = clusterDebugEnabled()
 ): AnalyzedFile[][] {
   let current = groups.map((m) => [...m]);
-  let merged = true;
+  let didMerge = true;
   let guard = 0;
-  while (merged && guard++ < 1000) {
-    merged = false;
-    const reps = current.map((m) => toFingerprint(pickCover(m)));
+  while (didMerge && guard++ < 1000) {
+    didMerge = false;
     outer: for (let i = 0; i < current.length; i++) {
       for (let j = i + 1; j < current.length; j++) {
-        if (combinedSimilarity(reps[i], reps[j]) >= threshold) {
+        const repA = pickCover(current[i]);
+        const repB = pickCover(current[j]);
+        const cmp = compareImages(toFingerprint(repA), toFingerprint(repB), {
+          threshold,
+          labelA: fileLabel(repA),
+          labelB: fileLabel(repB),
+          debug,
+        });
+        if (cmp.finalScore >= threshold) {
           current[i] = [...current[i], ...current[j]];
           current.splice(j, 1);
-          merged = true;
+          didMerge = true;
           break outer;
         }
       }
@@ -146,7 +181,67 @@ export function mergeSimilarGroups(
   return current;
 }
 
-/** Type de groupe produit demandé (image → produit). */
+/**
+ * Fusion automatique : même brand + category + mainColor → un seul groupe.
+ */
+export function mergeBySemanticKey(
+  groups: AnalyzedFile[][],
+  threshold: number = MERGE_THRESHOLD,
+  debug: boolean = clusterDebugEnabled()
+): AnalyzedFile[][] {
+  if (groups.length <= 1) return groups;
+
+  let current = groups.map((g) => [...g]);
+  let didMerge = true;
+  let guard = 0;
+
+  while (didMerge && guard++ < 1000) {
+    didMerge = false;
+    outer: for (let i = 0; i < current.length; i++) {
+      for (let j = i + 1; j < current.length; j++) {
+        const fpA = toFingerprint(pickCover(current[i]));
+        const fpB = toFingerprint(pickCover(current[j]));
+        const keyA = semanticGroupKey(fpA);
+        const keyB = semanticGroupKey(fpB);
+
+        let shouldMerge = false;
+        if (keyA && keyB && keyA === keyB) {
+          shouldMerge = true;
+        } else {
+          const cmp = compareImages(fpA, fpB, {
+            threshold,
+            labelA: `group_${i}`,
+            labelB: `group_${j}`,
+            debug,
+          });
+          if (
+            cmp.brandMatch === true &&
+            cmp.categoryMatch === true &&
+            cmp.colorMatch === true &&
+            cmp.finalScore >= threshold
+          ) {
+            shouldMerge = true;
+          }
+        }
+
+        if (shouldMerge) {
+          if (debug) {
+            console.info(
+              "[AI Import][cluster-debug] merge groups",
+              JSON.stringify({ groupA: i, groupB: j, keyA, keyB })
+            );
+          }
+          current[i] = [...current[i], ...current[j]];
+          current.splice(j, 1);
+          didMerge = true;
+          break outer;
+        }
+      }
+    }
+  }
+  return current;
+}
+
 export type ProductGroup = {
   productGroupId: string;
   images: { fileId: string; imageUrl: string }[];
@@ -159,11 +254,6 @@ export type ProductGroup = {
   };
 };
 
-/**
- * Étape explicite : regroupe les images d'un même produit AVANT toute création.
- * Renvoie la structure [{ productGroupId, images, detectedProduct }].
- * La création de produits se fait ensuite groupe par groupe (jamais par image).
- */
 export function groupSimilarImagesBeforeProductCreation(
   files: AnalyzedFile[],
   threshold: number = SIMILARITY_THRESHOLD
@@ -186,7 +276,6 @@ export function groupSimilarImagesBeforeProductCreation(
   });
 }
 
-/** Choisit la photo la plus représentative (médoïde par hash) comme image principale. */
 function pickCover(members: AnalyzedFile[]): AnalyzedFile {
   const withHash = members.filter((m) => m.phash);
   if (withHash.length >= 2) {
@@ -205,21 +294,18 @@ function pickCover(members: AnalyzedFile[]): AnalyzedFile {
     }
     return best;
   }
-  // Sinon : meilleure confiance d'analyse, puis ordre d'upload.
   return [...members].sort(
     (a, b) => (b.analysis.confidence ?? 0) - (a.analysis.confidence ?? 0)
   )[0];
 }
 
-/** Cohésion d'un groupe = similarité moyenne des membres au médoïde (0..1). */
 function cohesion(members: AnalyzedFile[], cover: AnalyzedFile): number {
   if (members.length <= 1) return 1;
-  const ref = toFingerprint(cover);
   let sum = 0;
   let n = 0;
   for (const m of members) {
     if (m === cover) continue;
-    sum += combinedSimilarity(ref, toFingerprint(m));
+    sum += scorePair(cover, m, SIMILARITY_THRESHOLD, false);
     n++;
   }
   return n === 0 ? 1 : sum / n;
@@ -232,17 +318,14 @@ function buildCluster(members: AnalyzedFile[]): Cluster {
   const model = mostCommon(members.map((m) => m.analysis.model));
   const productType = mostCommon(members.map((m) => m.analysis.productType));
   const category = mostCommon(members.map((m) => m.analysis.category));
-  const signature =
-    mostCommon(members.map((m) => m.analysis.signature)) ?? "produit";
+  const signature = mostCommon(members.map((m) => m.analysis.signature)) ?? "produit";
 
-  // Couleurs distinctes → variantes couleur
   const colorMap = new Map<string, { hex: string | null; conf: number }>();
   for (const m of members) {
     const c = m.analysis.colorName?.trim();
     if (!c) continue;
     if (!colorMap.has(c)) colorMap.set(c, { hex: m.analysis.dominantHex, conf: m.analysis.confidence });
   }
-  // Tailles distinctes → variantes taille
   const sizeSet = new Set<string>();
   for (const m of members) if (m.analysis.size) sizeSet.add(m.analysis.size.trim());
 
@@ -263,7 +346,6 @@ function buildCluster(members: AnalyzedFile[]): Cluster {
   const cover = pickCover(members);
   const analysisConf =
     members.reduce((s, m) => s + (m.analysis.confidence ?? 0), 0) / Math.max(1, members.length);
-  // Confiance finale = mélange confiance d'analyse + cohésion visuelle du groupe.
   const confidence = 0.5 * analysisConf + 0.5 * cohesion(members, cover);
 
   return {
@@ -282,11 +364,6 @@ function buildCluster(members: AnalyzedFile[]): Cluster {
   };
 }
 
-/**
- * Regroupe les fichiers analysés en produits.
- * @param mode "auto" = regroupement par similarité visuelle (défaut),
- *             "per_image" = un produit par photo (option avancée).
- */
 export function clusterAnalyses(
   files: AnalyzedFile[],
   mode: "auto" | "per_image" = "auto"
@@ -295,7 +372,6 @@ export function clusterAnalyses(
     mode === "per_image" ? files.map((f) => [f]) : groupSimilarImages(files);
 
   const clusters = groups.map(buildCluster);
-  // Produits les plus "riches" d'abord.
   clusters.sort((a, b) => b.fileIds.length - a.fileIds.length);
   return clusters;
 }

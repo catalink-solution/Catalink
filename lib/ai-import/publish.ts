@@ -57,6 +57,9 @@ export async function publishDetectedProduct(
     return { ok: false, error: error?.message ?? "insert_failed" };
   }
   const productId = (inserted as { id: string }).id;
+  console.info(
+    `[AI Import] Produit créé en base (id=${productId}) : « ${detected.title} » — ${baseImages.length} image(s) dans product_images.`
+  );
 
   // 2) Images de base (galerie + repli)
   if (baseImages.length > 0) {

@@ -18,6 +18,10 @@ export type StepResult = {
   detectedCount: number;
   estimatedSeconds: number;
   done: boolean;
+  /** Stats de regroupement (phase clustering). */
+  imagesReceived?: number;
+  groupsDetected?: number;
+  imagesPerGroup?: { group: string; images: number }[];
 };
 
 async function log(
@@ -197,6 +201,14 @@ export async function stepJob(admin: SupabaseClient, jobId: string): Promise<Ste
         group: `group_${i + 1}`,
         images: c.fileIds.length,
       }));
+      const clusterStats = {
+        jobId,
+        imagesReceived: analyzed.length,
+        groupsDetected: clusters.length,
+        mode,
+        imagesPerGroup: perGroup,
+      };
+      console.info("[AI Import] Regroupement", JSON.stringify(clusterStats));
       await log(
         admin,
         jobId,
@@ -204,7 +216,7 @@ export async function stepJob(admin: SupabaseClient, jobId: string): Promise<Ste
         "info",
         "clustering",
         `${analyzed.length} image(s) analysée(s) → ${clusters.length} groupe(s) produit détecté(s) (mode ${mode}).`,
-        { uploaded: analyzed.length, groups: clusters.length, perGroup: perGroup.slice(0, 100) }
+        clusterStats
       );
 
       for (const c of clusters) {
@@ -258,7 +270,12 @@ export async function stepJob(admin: SupabaseClient, jobId: string): Promise<Ste
         .update({ status: "generating", detected_count: clusters.length, updated_at: new Date().toISOString() })
         .eq("id", jobId);
       await log(admin, jobId, shopId, "info", "clustering", `${clusters.length} produit(s) détecté(s).`);
-      return result("generating", { detectedCount: clusters.length });
+      return result("generating", {
+        detectedCount: clusters.length,
+        imagesReceived: analyzed.length,
+        groupsDetected: clusters.length,
+        imagesPerGroup: perGroup,
+      });
     }
 
     // ── Phase 3 : génération du contenu (titre/desc/SEO) par lots ─────────────

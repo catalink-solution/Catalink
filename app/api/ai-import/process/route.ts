@@ -59,6 +59,18 @@ export async function POST(request: Request) {
 
   try {
     const step = await stepJob(admin, jobId);
+    if (step.groupsDetected != null) {
+      console.info(
+        "[AI Import] /process",
+        JSON.stringify({
+          jobId,
+          status: step.status,
+          imagesReceived: step.imagesReceived,
+          groupsDetected: step.groupsDetected,
+          detectedCount: step.detectedCount,
+        })
+      );
+    }
     return NextResponse.json({ ok: true, ...step });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "internal_error";
