@@ -60,8 +60,8 @@ function Navbar() {
         >
           Connexion
         </a>
-        <a href="/register" className="cta-primary text-sm">
-          Créer ma boutique →
+        <a href="/waitlist" className="cta-primary text-sm">
+          Demander un accès
         </a>
       </div>
     </nav>
@@ -163,8 +163,8 @@ function Hero() {
 
           {/* CTAs */}
           <div className="flex items-center justify-center gap-3 flex-wrap mb-16">
-            <a href="/register" className="cta-primary">
-              Créer ma boutique gratuitement →
+            <a href="/waitlist" className="cta-primary">
+              Demander un accès
             </a>
             <a href="#fonctionnement" className="cta-secondary">
               Voir comment ça marche
@@ -652,19 +652,19 @@ function Pricing() {
       name: "Starter", price: "19",
       desc: "Pour démarrer et tester avec tes premiers clients.",
       features: ["1 boutique en ligne", "Jusqu'à 20 produits", "Commandes illimitées", "Lien personnalisé", "Dashboard de base"],
-      popular: false, btnLabel: "Commencer →",
+      popular: false, btnLabel: "Demander un accès",
     },
     {
       name: "Pro", price: "49",
       desc: "Pour les vendeurs actifs qui veulent tout automatiser.",
       features: ["3 boutiques en ligne", "Produits illimités", "Dashboard complet", "Notifications temps réel", "Statistiques avancées", "Support prioritaire"],
-      popular: true, btnLabel: "Créer ma boutique →",
+      popular: true, btnLabel: "Demander un accès",
     },
     {
       name: "Business", price: "99",
       desc: "Pour les revendeurs avec un volume important.",
       features: ["Boutiques illimitées", "Accès API", "Gestion multi-comptes", "Rapport hebdomadaire auto", "Onboarding dédié", "Support 24/7"],
-      popular: false, btnLabel: "Contacter l'équipe →",
+      popular: false, btnLabel: "Demander un accès",
     },
   ];
   return (
@@ -673,7 +673,7 @@ function Pricing() {
         <p className="text-xs font-bold tracking-widest uppercase text-[var(--brand-accent)] mb-3">Tarifs</p>
         <h2 className="text-4xl font-extrabold tracking-tight mb-4">Simple, transparent,<br />sans surprise.</h2>
         <p className="text-[var(--muted)] max-w-md mx-auto mb-14 leading-relaxed">
-          Commence gratuitement le temps de la bêta. Choisis ton plan quand tu es prêt.
+          Inscriptions sur liste d&apos;attente. Demande ton accès — on te recontacte rapidement.
         </p>
         <div className="grid md:grid-cols-3 gap-5 items-start max-w-4xl mx-auto">
           {plans.map((p) => (
@@ -709,7 +709,7 @@ function Pricing() {
                 ))}
               </ul>
               <a
-                href="/register"
+                href="/waitlist"
                 className="block w-full rounded-full py-3 text-sm font-semibold text-center transition-all"
                 style={p.popular
                   ? { background: "linear-gradient(to right,var(--brand-accent),var(--brand-secondary))", boxShadow: "0 8px 24px -6px rgba(79,70,229,.45)", color: "white" }
@@ -736,10 +736,10 @@ function CtaFinal() {
           <span className="gradient-text">comme un pro ?</span>
         </h2>
         <p className="text-[var(--muted)] max-w-md mx-auto mb-10 leading-relaxed">
-          Rejoins la bêta privée Catalink et crée ta boutique en moins de 10 minutes. Gratuit pendant la bêta.
+          Rejoins la liste d&apos;attente Catalink et ouvre ta boutique dès que ton accès est validé.
         </p>
         <div className="flex items-center justify-center gap-3 flex-wrap">
-          <a href="/register" className="cta-primary">Créer ma boutique gratuitement →</a>
+          <a href="/waitlist" className="cta-primary">Demander un accès</a>
           <a href="#tarifs" className="cta-secondary">Voir les tarifs</a>
         </div>
       </div>

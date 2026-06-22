@@ -140,8 +140,8 @@ export default function LoginPage() {
 
         <p className="relative z-20 mt-6 text-center text-sm text-white/50">
           Pas encore de compte ?{" "}
-          <Link href="/register" className="font-semibold text-violet-300 hover:text-violet-200">
-            Créer un compte
+          <Link href="/waitlist" className="font-semibold text-violet-300 hover:text-violet-200">
+            Demander un accès
           </Link>
         </p>
       </div>
