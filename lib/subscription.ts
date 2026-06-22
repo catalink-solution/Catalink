@@ -12,6 +12,22 @@ export const PLAN_CATEGORY_LIMITS: Record<Plan, number> = {
   business: Infinity,
 };
 
+/** Prix mensuel (€) pour calcul MRR admin. */
+export const PLAN_MRR_EUR: Record<Plan, number> = {
+  free: 0,
+  pro: 49,
+  business: 99,
+};
+
+export type SubscriptionStatus = "active" | "expired" | "trialing" | "cancelled";
+
+export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
+  active: "Actif",
+  expired: "Expiré",
+  trialing: "Essai",
+  cancelled: "Annulé",
+};
+
 export function resolvePlan(plan: string | null | undefined): Plan {
   return plan === "pro" || plan === "business" ? plan : "free";
 }
@@ -22,6 +38,10 @@ export function categoryLimit(plan: string | null | undefined): number {
 
 export function planLabel(plan: string | null | undefined): string {
   return { free: "Free", pro: "Pro", business: "Business" }[resolvePlan(plan)];
+}
+
+export function planMrr(plan: string | null | undefined): number {
+  return PLAN_MRR_EUR[resolvePlan(plan)];
 }
 
 /** True when the shop can still create at least one more category. */

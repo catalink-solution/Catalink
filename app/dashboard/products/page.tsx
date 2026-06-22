@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Wand2, ArrowRight, Layers } from "lucide-react";
+import { Zap, ArrowRight, Layers } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { categoryLimit, canCreateCategory, planLabel } from "@/lib/subscription";
 import { MAIN_CATEGORIES, sizesForMain } from "@/lib/categories";
@@ -310,6 +310,11 @@ export default function ProductsPage() {
       setMessage("La catégorie principale est obligatoire.");
       return;
     }
+    const priceNum = parseFloat(price);
+    if (isNaN(priceNum) || priceNum < 0) {
+      setMessage("Prix invalide.");
+      return;
+    }
 
     let customId: string | null = null;
     let customLabel: string | null = null;
@@ -329,7 +334,7 @@ export default function ProductsPage() {
       .insert({
         shop_id: shopId,
         name: name.trim(),
-        price: Number(price),
+        price: priceNum,
         description,
         image_url: images[0] ?? null,
         category: customLabel ?? mainCategory,
@@ -520,29 +525,32 @@ export default function ProductsPage() {
         </span>
       </div>
 
-      {/* ── Import intelligent (AI Import) ── */}
+      {/* ── Import Rapide ── */}
       <div
-        className="relative mb-8 max-w-3xl overflow-hidden rounded-2xl border border-violet-500/40 p-6"
-        style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.20), rgba(59,130,246,0.10))" }}
+        className="relative mb-8 max-w-3xl overflow-hidden rounded-2xl border border-emerald-500/30 p-6"
+        style={{ background: "linear-gradient(135deg, rgba(16,185,129,0.12), rgba(59,130,246,0.08))" }}
       >
-        <span className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-violet-500/25 blur-3xl" />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-4">
-            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-violet-600 text-white shadow-lg">
-              <Wand2 size={24} />
+            <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-lg">
+              <Zap size={24} />
             </span>
             <div>
-              <h2 className="text-xl font-extrabold tracking-tight">Import intelligent</h2>
+              <h2 className="text-xl font-extrabold tracking-tight">Import Rapide</h2>
               <p className="mt-1 max-w-md text-sm text-white/70">
-                Importe plusieurs photos et laisse l’IA créer les produits automatiquement.
+                Upload plusieurs photos, sélectionne celles d&apos;un produit, crée la fiche — répète
+                jusqu&apos;à tout importer. Sans IA.
               </p>
+              <span className="mt-2 inline-block rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-[11px] font-medium text-violet-200">
+                Import IA — bientôt disponible
+              </span>
             </div>
           </div>
           <Link
-            href="/dashboard/products/ai-import"
-            className="btn-touch inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-violet-500 hover:shadow-[0_0_30px_-6px_rgba(124,58,237,0.7)]"
+            href="/dashboard/products/quick-import"
+            className="btn-touch inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-6 py-3.5 text-base font-bold text-white shadow-lg transition-all hover:bg-emerald-500"
           >
-            ⚡ AI Import <ArrowRight size={18} />
+            Import Rapide <ArrowRight size={18} />
           </Link>
         </div>
       </div>

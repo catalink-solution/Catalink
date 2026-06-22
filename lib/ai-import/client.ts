@@ -175,9 +175,10 @@ export type ProcessProgress = {
   imagesReceived?: number;
   groupsDetected?: number;
   imagesPerGroup?: { group: string; images: number }[];
+  groupingMethod?: string;
 };
 
-/** Boucle de traitement : appelle /process jusqu'à l'état final. */
+  /** Boucle de traitement : appelle /process jusqu'à l'état final. */
 export async function runProcessing(
   jobId: string,
   onProgress: (p: ProcessProgress) => void,
@@ -185,7 +186,7 @@ export async function runProcessing(
 ): Promise<void> {
   const token = await getAccessToken();
   let guard = 0;
-  const maxIterations = 200000; // borne de sécurité
+  const maxIterations = 200000;
   while (guard++ < maxIterations) {
     if (shouldStop?.()) return;
     const res = await fetch("/api/ai-import/process", {
@@ -203,17 +204,39 @@ export async function runProcessing(
     const p = (await res.json()) as ProcessProgress;
     if (p.groupsDetected != null && p.imagesReceived != null) {
       console.info(
-        `[AI Import] Regroupement : ${p.imagesReceived} image(s) → ${p.groupsDetected} groupe(s) détecté(s).`,
+        `[AI Import] Regroupement : ${p.imagesReceived} image(s) → ${p.groupsDetected} groupe(s) (${(p as ProcessProgress & { groupingMethod?: string }).groupingMethod ?? "?"}).`,
         p.imagesPerGroup
       );
     }
-    if (p.done && p.status === "ready_for_review") {
+    if (p.done && (p.status === "ready_for_review" || p.status === "ready_for_group_review")) {
       console.info(
-        `[AI Import] Analyse terminée : ${p.totalFiles} image(s), ${p.detectedCount} produit(s) détecté(s) (pas encore publiés).`
+        `[AI Import] Analyse terminée : ${p.totalFiles} image(s), ${p.detectedCount} produit(s) proposé(s).`
       );
     }
     onProgress(p);
     if (p.done) return;
     await new Promise((r) => setTimeout(r, 250));
   }
+}
+
+/** Valide les groupes et lance la génération de contenu, puis poll jusqu'à ready_for_review. */
+export async function confirmGroupsAndContinue(
+  jobId: string,
+  onProgress: (p: ProcessProgress) => void,
+  shouldStop?: () => boolean
+): Promise<void> {
+  const token = await getAccessToken();
+  const res = await fetch("/api/ai-import/confirm-groups", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ jobId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error ?? `confirm_${res.status}`);
+  }
+  await runProcessing(jobId, onProgress, shouldStop);
 }

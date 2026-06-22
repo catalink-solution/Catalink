@@ -19,7 +19,6 @@ import {
   ExternalLink,
   MessageSquare,
   Crown,
-  Wand2,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
@@ -29,7 +28,7 @@ const links = [
   { href: "/dashboard", label: "Vue d'ensemble", icon: LayoutDashboard },
   { href: "/dashboard/shop", label: "Ma boutique", icon: Store },
   { href: "/dashboard/products", label: "Produits", icon: Package },
-  { href: "/dashboard/ai-import", label: "AI Import", icon: Wand2 },
+  { href: "/dashboard/products/quick-import", label: "Import Rapide", icon: Zap },
   { href: "/dashboard/orders", label: "Commandes", icon: ClipboardList },
   { href: "/dashboard/clients", label: "Clients", icon: Users },
   { href: "/dashboard/vip", label: "VIP", icon: Crown },

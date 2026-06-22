@@ -15,14 +15,27 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (cancelled) return;
-      if (session) {
-        setReady(true);
-      } else {
+      if (!session) {
         setReady(false);
         router.replace("/login");
+        return;
       }
+
+      const { data: shop } = await supabase
+        .from("shops")
+        .select("is_suspended")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+      if (shop && (shop as { is_suspended?: boolean }).is_suspended) {
+        router.replace("/suspended");
+        return;
+      }
+
+      setReady(true);
     });
 
     return () => {

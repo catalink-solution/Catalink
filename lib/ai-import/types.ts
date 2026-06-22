@@ -4,10 +4,11 @@
 
 export type ImportJobStatus =
   | "pending" // créé, fichiers en cours d'enregistrement
-  | "analyzing" // analyse visuelle par lots
-  | "clustering" // regroupement en produits + variantes
-  | "generating" // génération du contenu (titre/desc/SEO)
-  | "ready_for_review" // prêt pour validation vendeur
+  | "analyzing" // analyse visuelle par lots (fallback sans vision)
+  | "clustering" // regroupement vision IA (ou fallback local)
+  | "ready_for_group_review" // groupes proposés — validation utilisateur
+  | "generating" // génération du contenu (titre/desc/SEO) après validation
+  | "ready_for_review" // prêt pour publication
   | "publishing"
   | "done"
   | "error";
@@ -144,12 +145,54 @@ export interface ContentGenerator {
   generate(summary: ProductSummary): Promise<ProductContent>;
 }
 
+/** Entrée pour le regroupement vision par lot. */
+export type VisionGroupInput = {
+  fileId: string;
+  imageUrl: string;
+  name?: string | null;
+  sortOrder: number;
+  phash?: string | null;
+  dhash?: string | null;
+  avgHex?: string | null;
+  analysis?: ImageAnalysis;
+};
+
+/** Groupe produit retourné par l'IA vision. */
+export type VisionProductGroup = {
+  temporaryProductName: string;
+  fileIds: string[];
+  category: string | null;
+  brand: string | null;
+  mainColor: string | null;
+  model?: string | null;
+  reason: string;
+  confidence: number;
+};
+
+export type VisionGroupingResult = {
+  groups: VisionProductGroup[];
+  method: "vision" | "local_fallback";
+  provider: string;
+  batchesSent: number;
+  rawResponse?: unknown;
+  fallbackReason?: string;
+};
+
+/** Regroupement multimodal par lot (OpenAI Vision, Claude, …). */
+export interface ImageGrouper {
+  readonly name: string;
+  groupImages(files: VisionGroupInput[]): Promise<VisionGroupingResult>;
+}
+
 export type ImportEngine = {
   analyzer: ImageAnalyzer;
   content: ContentGenerator;
+  grouper: ImageGrouper | null;
   /** true si un vrai fournisseur IA est actif (clé présente). */
   live: boolean;
   providerName: string;
+  /** true si le regroupement vision par lot est disponible. */
+  visionGrouping: boolean;
 };
 
 export const AUTO_VALIDATE_CONFIDENCE = 0.8;

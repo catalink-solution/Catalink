@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { publishDetectedProduct } from "@/lib/ai-import/publish";
+import { confirmGroupsAndContinue } from "@/lib/ai-import/client";
 import type {
   ImportDetectedProduct,
   ImportDetectedVariant,
@@ -33,7 +34,10 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
   const [bulkPublishing, setBulkPublishing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [message, setMessage] = useState<string | null>(null);
+  const [confirmingGroups, setConfirmingGroups] = useState(false);
+  const [generatingContent, setGeneratingContent] = useState(false);
+
+  const isGroupReview = products.length > 0 && products.every((p) => !p.title);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,7 +88,28 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
 
   const colorVariantCount = variants.filter((v) => v.attribute_name === "Couleur").length;
   const sizeVariantCount = variants.filter((v) => v.attribute_name === "Taille").length;
-  const pending = products.filter((p) => p.status !== "published" && p.status !== "rejected");
+  const [message, setMessage] = useState<string | null>(null);
+
+  function displayName(p: LocalProduct): string {
+    if (p.title) return p.title;
+    return [p.brand, p.model, p.main_color].filter(Boolean).join(" ") || "Produit détecté";
+  }
+
+  async function validateGroups() {
+    setMessage(null);
+    setConfirmingGroups(true);
+    setGeneratingContent(true);
+    try {
+      await confirmGroupsAndContinue(jobId, () => {}, () => false);
+      await load();
+      setMessage("Groupes validés — fiches produit générées. Tu peux maintenant fixer les prix et publier.");
+    } catch (e) {
+      setMessage(e instanceof Error ? e.message : "Erreur lors de la validation.");
+    } finally {
+      setConfirmingGroups(false);
+      setGeneratingContent(false);
+    }
+  }
 
   function patch(id: string, p: Partial<LocalProduct>) {
     setProducts((cur) => cur.map((x) => (x.id === id ? { ...x, ...p } : x)));
@@ -352,10 +377,21 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
     setMessage(`${ok} produit(s) publié(s).`);
   }
 
+  const pending = products.filter((p) => p.status !== "published" && p.status !== "rejected");
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-white/50">
         <Loader2 className="animate-spin" size={18} /> Chargement des résultats…
+      </div>
+    );
+  }
+
+  if (generatingContent) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-12 text-white/60">
+        <Loader2 className="animate-spin text-violet-400" size={32} />
+        <p className="font-semibold">Génération des fiches produit…</p>
       </div>
     );
   }
@@ -365,43 +401,68 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-violet-500/30 bg-violet-500/5 p-5">
         <div>
           <p className="flex items-center gap-2 text-lg font-bold">
-            <Sparkles className="text-violet-400" size={20} /> Nous avons détecté
+            <Sparkles className="text-violet-400" size={20} />
+            {isGroupReview ? "Groupes détectés par l'IA" : "Nous avons détecté"}
           </p>
           <p className="mt-1 text-sm text-white/70">
-            {files.length} image(s) → {products.length} produit(s) · {colorVariantCount} variante(s) couleur ·{" "}
-            {sizeVariantCount} variante(s) taille
+            {files.length} image(s) → {products.length} groupe(s)
+            {!isGroupReview && (
+              <>
+                {" "}
+                · {colorVariantCount} variante(s) couleur · {sizeVariantCount} variante(s) taille
+              </>
+            )}
           </p>
+          {isGroupReview && (
+            <p className="mt-2 text-sm text-amber-200/80">
+              Vérifie les groupes, fusionne ou sépare si besoin, puis valide avant de générer les fiches produit.
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap gap-2">
           {selected.size >= 2 && (
             <button
               type="button"
               onClick={mergeSelection}
-              disabled={busy}
+              disabled={busy || confirmingGroups}
               className="btn-touch inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 py-3 font-semibold hover:bg-white/10 disabled:opacity-40"
             >
               <GitMerge size={17} /> Fusionner ({selected.size})
             </button>
           )}
-          {selected.size >= 1 && (
+          {isGroupReview ? (
             <button
               type="button"
-              onClick={publishSelection}
-              disabled={bulkPublishing}
-              className="btn-touch inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-3 font-semibold text-violet-100 hover:bg-violet-500/20 disabled:opacity-40"
+              onClick={validateGroups}
+              disabled={confirmingGroups || products.length === 0}
+              className="btn-touch inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 font-semibold text-white hover:bg-violet-500 disabled:opacity-40"
             >
-              <PackageCheck size={17} /> Publier la sélection ({selected.size})
+              {confirmingGroups ? <Loader2 className="animate-spin" size={17} /> : <CheckCircle2 size={17} />}
+              Valider les groupes
             </button>
+          ) : (
+            <>
+              {selected.size >= 1 && (
+                <button
+                  type="button"
+                  onClick={publishSelection}
+                  disabled={bulkPublishing}
+                  className="btn-touch inline-flex items-center gap-2 rounded-xl border border-violet-500/40 bg-violet-500/10 px-4 py-3 font-semibold text-violet-100 hover:bg-violet-500/20 disabled:opacity-40"
+                >
+                  <PackageCheck size={17} /> Publier la sélection ({selected.size})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={publishAll}
+                disabled={bulkPublishing || pending.length === 0}
+                className="btn-touch inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 font-semibold text-white hover:bg-violet-500 disabled:opacity-40"
+              >
+                {bulkPublishing ? <Loader2 className="animate-spin" size={17} /> : <PackageCheck size={17} />}
+                Tout publier
+              </button>
+            </>
           )}
-          <button
-            type="button"
-            onClick={publishAll}
-            disabled={bulkPublishing || pending.length === 0}
-            className="btn-touch inline-flex items-center gap-2 rounded-xl bg-violet-600 px-5 py-3 font-semibold text-white hover:bg-violet-500 disabled:opacity-40"
-          >
-            {bulkPublishing ? <Loader2 className="animate-spin" size={17} /> : <PackageCheck size={17} />}
-            Tout publier
-          </button>
           <button
             type="button"
             onClick={onDone}
@@ -471,9 +532,9 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
               )}
 
               <input
-                value={p.title ?? ""}
+                value={isGroupReview ? displayName(p) : (p.title ?? "")}
                 onChange={(e) => patch(p.id, { title: e.target.value })}
-                disabled={published || rejected}
+                disabled={published || rejected || isGroupReview}
                 placeholder="Nom du produit"
                 className="mb-2 w-full rounded-lg border border-white/10 bg-white/10 p-2 text-sm font-semibold disabled:opacity-60"
               />
@@ -583,7 +644,7 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
                 </div>
               )}
 
-              {!published && !rejected && (
+              {!published && !rejected && !isGroupReview && (
                 <div className="mt-auto flex items-center gap-2">
                   <div className="flex items-center rounded-lg border border-white/10 bg-white/10">
                     <input
