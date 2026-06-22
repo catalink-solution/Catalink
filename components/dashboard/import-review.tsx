@@ -115,13 +115,17 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
     }
     patch(p.id, { _publishing: true });
     await persistEdits(p);
+    const pFiles = filesByProduct.get(p.id) ?? [];
     const res = await publishDetectedProduct({
       shopId: p.shop_id,
       detected: { ...p, sale_price: price },
-      files: filesByProduct.get(p.id) ?? [],
+      files: pFiles,
       variants: variantsByProduct.get(p.id) ?? [],
     });
     if (res.ok) {
+      console.info(
+        `[AI Import] Produit créé « ${p.title} » avec ${pFiles.length} image(s) associée(s).`
+      );
       patch(p.id, { status: "published", _publishing: false });
       return true;
     }
@@ -334,6 +338,9 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
       setMessage("Aucun produit avec un prix valide à publier.");
       return;
     }
+    console.info(
+      `[AI Import] Publication : ${ready.length} groupe(s) produit → création en cours…`
+    );
     setBulkPublishing(true);
     let ok = 0;
     for (const p of ready) {
@@ -341,6 +348,7 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
       if (done) ok++;
     }
     setBulkPublishing(false);
+    console.info(`[AI Import] ${ok} produit(s) créé(s) sur ${ready.length} groupe(s).`);
     setMessage(`${ok} produit(s) publié(s).`);
   }
 
@@ -360,7 +368,7 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
             <Sparkles className="text-violet-400" size={20} /> Nous avons détecté
           </p>
           <p className="mt-1 text-sm text-white/70">
-            {products.length} produit(s) · {colorVariantCount} variante(s) couleur ·{" "}
+            {files.length} image(s) → {products.length} produit(s) · {colorVariantCount} variante(s) couleur ·{" "}
             {sizeVariantCount} variante(s) taille
           </p>
         </div>

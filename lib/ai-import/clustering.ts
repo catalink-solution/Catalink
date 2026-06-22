@@ -114,7 +114,76 @@ export function groupSimilarImages(
     }
   }
 
-  return groups.map((g) => g.members);
+  // Sécurité : fusionne deux groupes dont les médoïdes dépassent le seuil.
+  return mergeSimilarGroups(groups.map((g) => g.members), threshold);
+}
+
+/**
+ * Fusionne les groupes trop proches (similarité des médoïdes ≥ seuil).
+ * Évite qu'un même produit reste éclaté en plusieurs groupes (sécurité demandée).
+ */
+export function mergeSimilarGroups(
+  groups: AnalyzedFile[][],
+  threshold: number = SIMILARITY_THRESHOLD
+): AnalyzedFile[][] {
+  let current = groups.map((m) => [...m]);
+  let merged = true;
+  let guard = 0;
+  while (merged && guard++ < 1000) {
+    merged = false;
+    const reps = current.map((m) => toFingerprint(pickCover(m)));
+    outer: for (let i = 0; i < current.length; i++) {
+      for (let j = i + 1; j < current.length; j++) {
+        if (combinedSimilarity(reps[i], reps[j]) >= threshold) {
+          current[i] = [...current[i], ...current[j]];
+          current.splice(j, 1);
+          merged = true;
+          break outer;
+        }
+      }
+    }
+  }
+  return current;
+}
+
+/** Type de groupe produit demandé (image → produit). */
+export type ProductGroup = {
+  productGroupId: string;
+  images: { fileId: string; imageUrl: string }[];
+  detectedProduct: {
+    name: string | null;
+    category: string | null;
+    color: string | null;
+    brand: string | null;
+    description: string | null;
+  };
+};
+
+/**
+ * Étape explicite : regroupe les images d'un même produit AVANT toute création.
+ * Renvoie la structure [{ productGroupId, images, detectedProduct }].
+ * La création de produits se fait ensuite groupe par groupe (jamais par image).
+ */
+export function groupSimilarImagesBeforeProductCreation(
+  files: AnalyzedFile[],
+  threshold: number = SIMILARITY_THRESHOLD
+): ProductGroup[] {
+  const groups = groupSimilarImages(files, threshold);
+  return groups.map((members, i) => {
+    const c = buildCluster(members);
+    const name = [c.brand, c.model, c.productType].filter(Boolean).join(" ") || null;
+    return {
+      productGroupId: `group_${i + 1}`,
+      images: members.map((m) => ({ fileId: m.fileId, imageUrl: m.imageUrl })),
+      detectedProduct: {
+        name,
+        category: c.category,
+        color: c.colorNames[0] ?? null,
+        brand: c.brand,
+        description: null,
+      },
+    };
+  });
 }
 
 /** Choisit la photo la plus représentative (médoïde par hash) comme image principale. */

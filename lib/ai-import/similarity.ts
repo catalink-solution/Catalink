@@ -117,12 +117,12 @@ export function combinedSimilarity(a: Fingerprint, b: Fingerprint): number {
   let score = 0;
   let weight = 0;
   if (visual != null) {
-    score += 0.6 * visual;
-    weight += 0.6;
+    score += 0.55 * visual;
+    weight += 0.55;
   }
   if (color != null) {
-    score += 0.25 * color;
-    weight += 0.25;
+    score += 0.3 * color;
+    weight += 0.3;
   }
   if (name != null) {
     score += 0.15 * name;
@@ -130,9 +130,19 @@ export function combinedSimilarity(a: Fingerprint, b: Fingerprint): number {
   }
   let base = weight > 0 ? score / weight : 0;
 
+  // Règles de regroupement (angles différents d'un même article) :
+  // — même couleur dominante forte + forme plausible → même produit.
+  if (color != null && color >= 0.9 && (visual == null || visual >= 0.55)) {
+    base = Math.max(base, 0.85);
+  }
+  // — quasi-duplicat visuel (même photo recadrée/retaillée).
+  if (visual != null && visual >= 0.85) {
+    base = Math.max(base, 0.85);
+  }
+
   // La signature IA spécifique surclasse les heuristiques visuelles.
   if (sigA && sigB) {
-    if (sigA === sigB) base = Math.max(base, 0.9);
+    if (sigA === sigB) base = Math.max(base, 0.92);
     else base = Math.min(base, 0.55); // produits connus distincts
   }
   return base;

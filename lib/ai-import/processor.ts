@@ -192,6 +192,21 @@ export async function stepJob(admin: SupabaseClient, jobId: string): Promise<Ste
       const mode = (jobRow.group_mode as "auto" | "per_image") ?? "auto";
       const clusters = clusterAnalyses(analyzed, mode);
 
+      // Logs clairs : images uploadées → groupes détectés → images par groupe.
+      const perGroup = clusters.map((c, i) => ({
+        group: `group_${i + 1}`,
+        images: c.fileIds.length,
+      }));
+      await log(
+        admin,
+        jobId,
+        shopId,
+        "info",
+        "clustering",
+        `${analyzed.length} image(s) analysée(s) → ${clusters.length} groupe(s) produit détecté(s) (mode ${mode}).`,
+        { uploaded: analyzed.length, groups: clusters.length, perGroup: perGroup.slice(0, 100) }
+      );
+
       for (const c of clusters) {
         const { data: dp } = await admin
           .from("import_detected_products")
