@@ -14,10 +14,12 @@ import {
   ExternalLink,
   Loader2,
   MoreHorizontal,
+  ClipboardList,
+  Mail,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { planLabel, SUBSCRIPTION_STATUS_LABELS, type SubscriptionStatus } from "@/lib/subscription";
-import type { AdminStats, AdminUserRow } from "@/lib/admin/types";
+import type { AdminStats, AdminUserRow, AdminWaitlistRow, WaitlistStatus } from "@/lib/admin/types";
 
 async function getToken() {
   const { data } = await supabase.auth.getSession();
@@ -60,12 +62,39 @@ const STATUS_LABEL: Record<AdminUserRow["accountStatus"], string> = {
   expired: "Expiré",
 };
 
+const WAITLIST_STATUS_LABEL: Record<WaitlistStatus, string> = {
+  pending: "En attente",
+  invited: "Invité",
+  registered: "Inscrit",
+};
+
+const WAITLIST_STATUS_BADGE: Record<WaitlistStatus, string> = {
+  pending: "bg-amber-500/15 text-amber-300",
+  invited: "bg-blue-500/15 text-blue-300",
+  registered: "bg-green-500/15 text-green-300",
+};
+
+const CHANNEL_LABEL: Record<string, string> = {
+  snapchat: "Snapchat",
+  telegram: "Telegram",
+  tiktok: "TikTok",
+  instagram: "Instagram",
+  other: "Autre",
+};
+
+function channelLabel(channel: string, other: string | null) {
+  if (channel === "other" && other) return other;
+  return CHANNEL_LABEL[channel] ?? channel;
+}
+
 export function AdminDashboard() {
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [users, setUsers] = useState<AdminUserRow[]>([]);
+  const [waitlist, setWaitlist] = useState<AdminWaitlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyWaitlistId, setBusyWaitlistId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<AdminUserRow | null>(null);
   const [editPlan, setEditPlan] = useState("free");
   const [editStatus, setEditStatus] = useState<SubscriptionStatus>("active");
@@ -74,19 +103,22 @@ export function AdminDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [statsRes, usersRes] = await Promise.all([
+    const [statsRes, usersRes, waitlistRes] = await Promise.all([
       adminFetch("/api/admin/stats"),
       adminFetch("/api/admin/users"),
+      adminFetch("/api/admin/waitlist"),
     ]);
-    if (!statsRes.ok || !usersRes.ok) {
+    if (!statsRes.ok || !usersRes.ok || !waitlistRes.ok) {
       setError("Impossible de charger les données admin.");
       setLoading(false);
       return;
     }
     const statsJson = await statsRes.json();
     const usersJson = await usersRes.json();
+    const waitlistJson = await waitlistRes.json();
     setStats(statsJson.stats);
     setUsers(usersJson.users);
+    setWaitlist(waitlistJson.waitlist);
     setLoading(false);
   }, []);
 
@@ -125,6 +157,24 @@ export function AdminDashboard() {
     setEditUser(null);
   }
 
+  async function inviteProspect(row: AdminWaitlistRow) {
+    setBusyWaitlistId(row.id);
+    setError(null);
+    const res = await adminFetch(`/api/admin/waitlist/${row.id}/invite`, { method: "POST" });
+    setBusyWaitlistId(null);
+
+    if (res.status === 409) {
+      setError("Ce prospect a déjà un compte Catalink.");
+      await load();
+      return;
+    }
+    if (!res.ok) {
+      setError("Invitation échouée.");
+      return;
+    }
+    await load();
+  }
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-white/50">
@@ -148,6 +198,8 @@ export function AdminDashboard() {
         { label: "Nouveaux (7j)", value: stats.newUsers7d, icon: UserPlus },
         { label: "Abonnements actifs", value: stats.activeSubscriptions, icon: CheckCircle2 },
         { label: "Abonnements expirés", value: stats.expiredSubscriptions, icon: XCircle },
+        { label: "Waitlist", value: stats.waitlistCount, icon: ClipboardList },
+        { label: "Waitlist en attente", value: stats.waitlistPending, icon: Mail },
       ]
     : [];
 
@@ -176,6 +228,86 @@ export function AdminDashboard() {
             </div>
           );
         })}
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-white/10">
+        <div className="border-b border-white/10 px-5 py-4">
+          <h2 className="text-lg font-bold">Liste d&apos;attente ({waitlist.length})</h2>
+          <p className="mt-1 text-sm text-white/40">
+            Demandes d&apos;accès — invite un prospect pour lui créer un compte par email.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead className="bg-white/[0.03] text-xs uppercase tracking-wide text-white/40">
+              <tr>
+                <th className="px-4 py-3">Nom</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Boutique</th>
+                <th className="px-4 py-3">Canal</th>
+                <th className="px-4 py-3">Date</th>
+                <th className="px-4 py-3">Statut</th>
+                <th className="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {waitlist.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-4 py-8 text-center text-white/40">
+                    Aucune demande pour le moment.
+                  </td>
+                </tr>
+              ) : (
+                waitlist.map((w) => (
+                  <tr key={w.id} className="border-t border-white/5 hover:bg-white/[0.02]">
+                    <td className="px-4 py-3 font-medium">{w.name}</td>
+                    <td className="px-4 py-3 text-white/70">{w.email}</td>
+                    <td className="px-4 py-3">{w.shopName}</td>
+                    <td className="px-4 py-3 text-white/60">
+                      {channelLabel(w.channel, w.channelOther)}
+                    </td>
+                    <td className="px-4 py-3 text-white/60">{formatDate(w.createdAt)}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium ${WAITLIST_STATUS_BADGE[w.status]}`}
+                      >
+                        {WAITLIST_STATUS_LABEL[w.status]}
+                      </span>
+                      {w.invitedAt && (
+                        <p className="mt-0.5 text-xs text-white/30">
+                          Invité {formatDate(w.invitedAt)}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {w.status === "pending" ? (
+                        <button
+                          type="button"
+                          disabled={busyWaitlistId === w.id}
+                          onClick={() => inviteProspect(w)}
+                          className="rounded-lg border border-violet-500/40 px-2 py-1 text-xs text-violet-300 hover:bg-violet-500/10 disabled:opacity-40"
+                        >
+                          {busyWaitlistId === w.id ? "Envoi…" : "Inviter ce prospect"}
+                        </button>
+                      ) : w.status === "invited" ? (
+                        <button
+                          type="button"
+                          disabled={busyWaitlistId === w.id}
+                          onClick={() => inviteProspect(w)}
+                          className="rounded-lg border border-white/10 px-2 py-1 text-xs text-white/50 hover:bg-white/5 disabled:opacity-40"
+                        >
+                          Renvoyer l&apos;invitation
+                        </button>
+                      ) : (
+                        <span className="text-xs text-white/30">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-white/10">

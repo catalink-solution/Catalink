@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { planMrr, resolvePlan } from "@/lib/subscription";
-import type { AdminStats, AdminUserRow } from "./types";
+import type { AdminStats, AdminUserRow, AdminWaitlistRow, WaitlistStatus } from "./types";
 
 type ShopRow = {
   id: string;
@@ -59,11 +59,12 @@ async function listAllAuthUsers(admin: SupabaseClient) {
 export async function fetchAdminStats(admin: SupabaseClient): Promise<AdminStats> {
   const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [users, shopsRes, productsRes, ordersRes] = await Promise.all([
+  const [users, shopsRes, productsRes, ordersRes, waitlistRes] = await Promise.all([
     listAllAuthUsers(admin),
     admin.from("shops").select("id, plan, subscription_status, subscription_expires_at"),
     admin.from("products").select("id", { count: "exact", head: true }),
     admin.from("orders").select("id, total, status"),
+    admin.from("waitlist_requests").select("id, status", { count: "exact" }),
   ]);
 
   const shops = (shopsRes.data ?? []) as ShopRow[];
@@ -94,6 +95,8 @@ export async function fetchAdminStats(admin: SupabaseClient): Promise<AdminStats
 
   const newUsers7d = users.filter((u) => u.created_at >= sevenDaysAgo).length;
 
+  const waitlistRows = (waitlistRes.data ?? []) as { id: string; status: string }[];
+
   return {
     totalUsers: users.length,
     totalShops: shops.length,
@@ -104,7 +107,63 @@ export async function fetchAdminStats(admin: SupabaseClient): Promise<AdminStats
     newUsers7d,
     activeSubscriptions,
     expiredSubscriptions,
+    waitlistCount: waitlistRes.count ?? waitlistRows.length,
+    waitlistPending: waitlistRows.filter((w) => w.status === "pending").length,
   };
+}
+
+type WaitlistDbRow = {
+  id: string;
+  name: string;
+  email: string;
+  shop_name: string;
+  channel: string;
+  channel_other: string | null;
+  status: string;
+  invited_at: string | null;
+  invited_by: string | null;
+  created_at: string;
+};
+
+function resolveWaitlistStatus(
+  row: WaitlistDbRow,
+  registeredEmails: Set<string>
+): WaitlistStatus {
+  if (registeredEmails.has(row.email.trim().toLowerCase())) return "registered";
+  if (row.status === "invited") return "invited";
+  return "pending";
+}
+
+export async function fetchAdminWaitlist(admin: SupabaseClient): Promise<AdminWaitlistRow[]> {
+  const [waitlistRes, authUsers] = await Promise.all([
+    admin
+      .from("waitlist_requests")
+      .select(
+        "id, name, email, shop_name, channel, channel_other, status, invited_at, invited_by, created_at"
+      )
+      .order("created_at", { ascending: false }),
+    listAllAuthUsers(admin),
+  ]);
+
+  const registeredEmails = new Set(
+    authUsers.map((u) => u.email?.trim().toLowerCase()).filter(Boolean) as string[]
+  );
+
+  return ((waitlistRes.data ?? []) as WaitlistDbRow[]).map((row) => {
+    const status = resolveWaitlistStatus(row, registeredEmails);
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      shopName: row.shop_name,
+      channel: row.channel,
+      channelOther: row.channel_other,
+      status,
+      invitedAt: row.invited_at,
+      invitedBy: row.invited_by,
+      createdAt: row.created_at,
+    } satisfies AdminWaitlistRow;
+  });
 }
 
 export async function fetchAdminUsers(admin: SupabaseClient): Promise<AdminUserRow[]> {

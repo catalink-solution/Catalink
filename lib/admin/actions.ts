@@ -68,3 +68,59 @@ export async function updateSubscription(
 
   await logAdminAction(admin, adminEmail, "update_subscription", { userId, shopId }, data);
 }
+
+export async function inviteWaitlistProspect(
+  admin: SupabaseClient,
+  adminEmail: string,
+  waitlistId: string
+) {
+  const { data: row, error: fetchErr } = await admin
+    .from("waitlist_requests")
+    .select("id, email, name, status")
+    .eq("id", waitlistId)
+    .maybeSingle();
+
+  if (fetchErr) throw fetchErr;
+  if (!row) throw new Error("not_found");
+
+  const email = (row as { email: string }).email.trim().toLowerCase();
+
+  const { data: existingUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+  const alreadyRegistered = existingUsers.users.some(
+    (u) => u.email?.trim().toLowerCase() === email
+  );
+  if (alreadyRegistered) {
+    await admin
+      .from("waitlist_requests")
+      .update({ status: "registered" })
+      .eq("id", waitlistId);
+    throw new Error("already_registered");
+  }
+
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
+
+  const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${appUrl}/login`,
+  });
+  if (inviteErr) throw inviteErr;
+
+  const now = new Date().toISOString();
+  const { error: updateErr } = await admin
+    .from("waitlist_requests")
+    .update({
+      status: "invited",
+      invited_at: now,
+      invited_by: adminEmail,
+    })
+    .eq("id", waitlistId);
+  if (updateErr) throw updateErr;
+
+  await logAdminAction(
+    admin,
+    adminEmail,
+    "invite_waitlist",
+    {},
+    { waitlistId, email, name: (row as { name: string }).name }
+  );
+}

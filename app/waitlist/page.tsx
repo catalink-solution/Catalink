@@ -44,7 +44,9 @@ export default function WaitlistPage() {
 
       if (!res.ok) {
         const errText =
-          json.error === "invalid_email"
+          json.error === "duplicate_email"
+            ? "Cette adresse email est déjà inscrite sur la liste d'attente."
+            : json.error === "invalid_email"
             ? "Adresse email invalide."
             : json.error === "channel_other_required"
               ? "Précise ton canal principal."

@@ -46,6 +46,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "channel_other_required" }, { status: 400 });
   }
 
+  const { data: existing } = await admin
+    .from("waitlist_requests")
+    .select("id")
+    .ilike("email", email)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({ error: "duplicate_email" }, { status: 409 });
+  }
+
   const { error } = await admin.from("waitlist_requests").insert({
     name,
     email,
@@ -55,6 +65,9 @@ export async function POST(request: Request) {
   });
 
   if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "duplicate_email" }, { status: 409 });
+    }
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 

@@ -8,6 +8,23 @@ export type AdminStats = {
   newUsers7d: number;
   activeSubscriptions: number;
   expiredSubscriptions: number;
+  waitlistCount: number;
+  waitlistPending: number;
+};
+
+export type WaitlistStatus = "pending" | "invited" | "registered";
+
+export type AdminWaitlistRow = {
+  id: string;
+  name: string;
+  email: string;
+  shopName: string;
+  channel: string;
+  channelOther: string | null;
+  status: WaitlistStatus;
+  invitedAt: string | null;
+  invitedBy: string | null;
+  createdAt: string;
 };
 
 export type AdminUserRow = {
