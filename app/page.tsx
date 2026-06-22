@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
 import Image from "next/image";
+import { FAQ } from "@/components/FAQ";
 import {
   Link2,
   LayoutGrid,
@@ -17,12 +17,6 @@ import {
   Share2,
   ClipboardList,
 } from "lucide-react";
-
-export const metadata: Metadata = {
-  title: "Catalink — Crée ton catalogue. Partage ton lien. Vends partout.",
-  description:
-    "Transforme tes stories Snapchat, TikTok et Telegram en une boutique professionnelle accessible depuis un simple lien.",
-};
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
 function Navbar() {
@@ -839,6 +833,7 @@ export default function Home() {
         <DashboardMock />
         <SocialProof />
         <Pricing />
+        <FAQ />
         <CtaFinal />
       </main>
       <Footer />

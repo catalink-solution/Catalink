@@ -13,11 +13,41 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "https://catalink.app";
+
+const title =
+  "Catalink — La boutique intelligente pour vendeurs Snapchat, TikTok et Telegram";
+const description =
+  "Crée ta boutique, gère tes produits, centralise tes réseaux et transforme tes DM en commandes avec Catalink.";
+
 export const metadata: Metadata = {
-  title: "Catalink — Crée ton catalogue. Partage ton lien.",
-  description:
-    "Transforme tes réseaux sociaux en une boutique professionnelle accessible depuis un simple lien.",
+  metadataBase: new URL(siteUrl),
+  title,
+  description,
   applicationName: "Catalink",
+  openGraph: {
+    type: "website",
+    locale: "fr_FR",
+    url: "/",
+    siteName: "Catalink",
+    title,
+    description,
+    images: [
+      {
+        url: "/og-catalink.png",
+        width: 1200,
+        height: 630,
+        alt: "Catalink — Transforme tes réseaux sociaux en boutique professionnelle",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["/og-catalink.png"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
