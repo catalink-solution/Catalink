@@ -25,7 +25,15 @@ export async function publishDetectedProduct(
   if (!(price > 0)) return { ok: false, error: "Prix de vente requis." };
 
   const orderedFiles = [...files].sort((a, b) => a.sort_order - b.sort_order);
+  // La meilleure photo (cover choisie auto ou par le vendeur) passe en première position.
+  const cover = detected.cover_image_url;
   const baseImages = orderedFiles.map((f) => f.image_url);
+  if (cover && baseImages.includes(cover)) {
+    baseImages.splice(baseImages.indexOf(cover), 1);
+    baseImages.unshift(cover);
+  } else if (cover && !baseImages.includes(cover)) {
+    baseImages.unshift(cover);
+  }
   const hasVariants = variants.length > 0;
 
   // 1) Produit

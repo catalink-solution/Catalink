@@ -139,7 +139,7 @@ export async function stepJob(admin: SupabaseClient, jobId: string): Promise<Ste
     if (status === "clustering") {
       const { data: files } = await admin
         .from("import_files")
-        .select("id, image_url, sort_order")
+        .select("id, image_url, sort_order, original_name, phash, dhash, avg_hex")
         .eq("job_id", jobId)
         .order("sort_order", { ascending: true });
       const { data: results } = await admin
@@ -148,7 +148,17 @@ export async function stepJob(admin: SupabaseClient, jobId: string): Promise<Ste
         .eq("job_id", jobId);
 
       const resultByFile = new Map((results ?? []).map((r) => [r.file_id as string, r]));
-      const analyzed: AnalyzedFile[] = ((files ?? []) as { id: string; image_url: string; sort_order: number }[])
+      const analyzed: AnalyzedFile[] = (
+        (files ?? []) as {
+          id: string;
+          image_url: string;
+          sort_order: number;
+          original_name: string | null;
+          phash: string | null;
+          dhash: string | null;
+          avg_hex: string | null;
+        }[]
+      )
         .filter((f) => resultByFile.has(f.id))
         .map((f) => {
           const r = resultByFile.get(f.id)!;
@@ -167,10 +177,20 @@ export async function stepJob(admin: SupabaseClient, jobId: string): Promise<Ste
           // Re-extraire la taille depuis raw si présente.
           const raw = r.raw as { size?: string | null } | null;
           if (raw?.size) analysis.size = raw.size;
-          return { fileId: f.id, imageUrl: f.image_url, sortOrder: f.sort_order, analysis };
+          return {
+            fileId: f.id,
+            imageUrl: f.image_url,
+            sortOrder: f.sort_order,
+            name: f.original_name,
+            phash: f.phash,
+            dhash: f.dhash,
+            avgHex: f.avg_hex,
+            analysis,
+          };
         });
 
-      const clusters = clusterAnalyses(analyzed);
+      const mode = (jobRow.group_mode as "auto" | "per_image") ?? "auto";
+      const clusters = clusterAnalyses(analyzed, mode);
 
       for (const c of clusters) {
         const { data: dp } = await admin

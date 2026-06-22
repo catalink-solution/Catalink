@@ -5,7 +5,10 @@
 
 import { unzip } from "fflate";
 import { supabase } from "@/lib/supabase";
+import { computeFingerprint } from "./fingerprint";
 import type { ImportSourceType } from "./types";
+
+export type GroupMode = "auto" | "per_image";
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|gif|avif|bmp)$/i;
 const UPLOAD_CONCURRENCY = 4;
@@ -60,10 +63,21 @@ export async function getAccessToken(): Promise<string | null> {
   return data.session?.access_token ?? null;
 }
 
-async function createJob(shopId: string, sourceType: ImportSourceType, total: number) {
+async function createJob(
+  shopId: string,
+  sourceType: ImportSourceType,
+  total: number,
+  groupMode: GroupMode = "auto"
+) {
   const { data, error } = await supabase
     .from("import_jobs")
-    .insert({ shop_id: shopId, source_type: sourceType, status: "pending", total_files: total })
+    .insert({
+      shop_id: shopId,
+      source_type: sourceType,
+      status: "pending",
+      total_files: total,
+      group_mode: groupMode,
+    })
     .select("id")
     .single();
   if (error || !data) throw new Error(error?.message ?? "job_create_failed");
@@ -75,14 +89,21 @@ export async function createUploadJob(
   shopId: string,
   images: NamedFile[],
   sourceType: ImportSourceType,
-  onProgress?: (uploaded: number, total: number) => void
+  onProgress?: (uploaded: number, total: number) => void,
+  groupMode: GroupMode = "auto"
 ): Promise<string> {
-  const jobId = await createJob(shopId, sourceType, images.length);
+  const jobId = await createJob(shopId, sourceType, images.length, groupMode);
 
   let uploaded = 0;
   const rows = await mapLimited(images, UPLOAD_CONCURRENCY, async (img, i) => {
     const safe = img.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
     const path = `${shopId}/imports/${jobId}/${i}-${safe}`;
+    // Empreinte visuelle locale (regroupement des photos d'un même produit).
+    const fp = await computeFingerprint(img.file).catch(() => ({
+      phash: null,
+      dhash: null,
+      avgHex: null,
+    }));
     const { error } = await supabase.storage.from("product-images").upload(path, img.file, {
       upsert: true,
       contentType: img.file.type || "image/jpeg",
@@ -100,6 +121,9 @@ export async function createUploadJob(
       image_url: url,
       original_name: img.name,
       sort_order: i,
+      phash: fp.phash,
+      dhash: fp.dhash,
+      avg_hex: fp.avgHex,
       status: error ? "error" : "pending",
       error: error?.message ?? null,
     };
@@ -115,10 +139,14 @@ export async function createUploadJob(
 }
 
 /** Crée un job à partir d'URLs distantes (pas d'upload). */
-export async function createUrlJob(shopId: string, urls: string[]): Promise<string> {
+export async function createUrlJob(
+  shopId: string,
+  urls: string[],
+  groupMode: GroupMode = "auto"
+): Promise<string> {
   const clean = urls.map((u) => u.trim()).filter((u) => /^https?:\/\//i.test(u));
   if (clean.length === 0) throw new Error("Aucune URL valide.");
-  const jobId = await createJob(shopId, "url", clean.length);
+  const jobId = await createJob(shopId, "url", clean.length, groupMode);
   const rows = clean.map((url, i) => ({
     job_id: jobId,
     shop_id: shopId,

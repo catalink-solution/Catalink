@@ -11,6 +11,9 @@ import {
   Split,
   CheckSquare,
   Square,
+  Star,
+  Scissors,
+  X,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { publishDetectedProduct } from "@/lib/ai-import/publish";
@@ -252,6 +255,76 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
     setMessage("Produit séparé par couleur.");
   }
 
+  // Définit la photo principale d'un produit détecté.
+  async function setMainPhoto(p: LocalProduct, file: ImportFile) {
+    patch(p.id, { cover_image_url: file.image_url });
+    await supabase
+      .from("import_detected_products")
+      .update({ cover_image_url: file.image_url })
+      .eq("id", p.id);
+  }
+
+  // Retire (supprime) une photo du groupe.
+  async function removePhoto(p: LocalProduct, file: ImportFile) {
+    const remaining = (filesByProduct.get(p.id) ?? []).filter((f) => f.id !== file.id);
+    if (remaining.length === 0) {
+      setMessage("Impossible de retirer la dernière photo. Rejette plutôt le produit.");
+      return;
+    }
+    setBusy(true);
+    await supabase.from("import_files").delete().eq("id", file.id);
+    if (p.cover_image_url === file.image_url) {
+      await supabase
+        .from("import_detected_products")
+        .update({ cover_image_url: remaining[0].image_url })
+        .eq("id", p.id);
+    }
+    setBusy(false);
+    await load();
+  }
+
+  // Sépare UNE photo du groupe → nouveau produit dédié.
+  async function separatePhoto(p: LocalProduct, file: ImportFile) {
+    const remaining = (filesByProduct.get(p.id) ?? []).filter((f) => f.id !== file.id);
+    if (remaining.length === 0) {
+      setMessage("Le groupe ne contient qu'une photo.");
+      return;
+    }
+    setBusy(true);
+    const { data: np } = await supabase
+      .from("import_detected_products")
+      .insert({
+        job_id: p.job_id,
+        shop_id: p.shop_id,
+        title: p.title ? `${p.title} (séparé)` : null,
+        brand: p.brand,
+        model: p.model,
+        category: p.category,
+        description: p.description,
+        main_color: p.main_color,
+        cover_image_url: file.image_url,
+        confidence: p.confidence,
+        status: "needs_review",
+        tags: p.tags,
+      })
+      .select("id")
+      .single();
+    const nid = (np as { id: string }).id;
+    await supabase
+      .from("import_files")
+      .update({ detected_product_id: nid, variant_label: null })
+      .eq("id", file.id);
+    if (p.cover_image_url === file.image_url) {
+      await supabase
+        .from("import_detected_products")
+        .update({ cover_image_url: remaining[0].image_url })
+        .eq("id", p.id);
+    }
+    setBusy(false);
+    await load();
+    setMessage("Photo séparée en nouveau produit.");
+  }
+
   async function publishAll() {
     setMessage(null);
     const ready = products.filter(
@@ -425,6 +498,81 @@ export function ImportReview({ jobId, onDone }: { jobId: string; onDone: () => v
 
               {p.description && (
                 <p className="mb-3 line-clamp-2 text-xs text-white/50">{p.description}</p>
+              )}
+
+              {/* Galerie des photos du groupe */}
+              {pFiles.length > 0 && (
+                <div className="mb-3">
+                  <p className="mb-1.5 text-[11px] uppercase tracking-wide text-white/40">
+                    {pFiles.length} photo(s)
+                  </p>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {pFiles.map((file) => {
+                      const isCover = p.cover_image_url === file.image_url;
+                      return (
+                        <div
+                          key={file.id}
+                          className={`group/photo relative aspect-square overflow-hidden rounded-lg border ${
+                            isCover ? "border-violet-500" : "border-white/10"
+                          }`}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={file.image_url}
+                            alt=""
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                          {isCover && (
+                            <span className="absolute left-0.5 top-0.5 rounded bg-violet-600 px-1 text-[8px] font-bold text-white">
+                              <Star size={9} className="inline" />
+                            </span>
+                          )}
+                          {!published && !rejected && (
+                            <div className="absolute inset-0 flex items-center justify-center gap-1 bg-black/60 opacity-0 transition-opacity group-hover/photo:opacity-100">
+                              {!isCover && (
+                                <button
+                                  type="button"
+                                  onClick={() => setMainPhoto(p, file)}
+                                  disabled={busy}
+                                  className="rounded p-1 text-white/80 hover:text-white"
+                                  title="Définir comme photo principale"
+                                  aria-label="Photo principale"
+                                >
+                                  <Star size={14} />
+                                </button>
+                              )}
+                              {pFiles.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => separatePhoto(p, file)}
+                                  disabled={busy}
+                                  className="rounded p-1 text-white/80 hover:text-white"
+                                  title="Séparer en nouveau produit"
+                                  aria-label="Séparer"
+                                >
+                                  <Scissors size={14} />
+                                </button>
+                              )}
+                              {pFiles.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => removePhoto(p, file)}
+                                  disabled={busy}
+                                  className="rounded p-1 text-white/80 hover:text-red-400"
+                                  title="Retirer cette photo"
+                                  aria-label="Retirer"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
 
               {!published && !rejected && (

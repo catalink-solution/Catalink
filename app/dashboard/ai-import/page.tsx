@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, UploadCloud, FolderUp, Link2, Loader2, AlertTriangle } from "lucide-react";
+import { Sparkles, UploadCloud, FolderUp, Link2, Loader2, AlertTriangle, Layers, Image as ImageIcon } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
   expandToImages,
@@ -10,6 +10,7 @@ import {
   runProcessing,
   type NamedFile,
   type ProcessProgress,
+  type GroupMode,
 } from "@/lib/ai-import/client";
 import { ImportReview } from "@/components/dashboard/import-review";
 
@@ -57,8 +58,11 @@ export default function AiImportPage() {
   const [progress, setProgress] = useState<ProcessProgress | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [urls, setUrls] = useState("");
+  const [groupMode, setGroupMode] = useState<GroupMode>("auto");
   const [error, setError] = useState<string | null>(null);
   const stopRef = useRef(false);
+  const groupModeRef = useRef<GroupMode>("auto");
+  groupModeRef.current = groupMode;
 
   useEffect(() => {
     (async () => {
@@ -85,8 +89,12 @@ export default function AiImportPage() {
     setPhase("uploading");
     setUploadProgress({ done: 0, total: images.length });
     try {
-      const id = await createUploadJob(shopId, images, source, (done, total) =>
-        setUploadProgress({ done, total })
+      const id = await createUploadJob(
+        shopId,
+        images,
+        source,
+        (done, total) => setUploadProgress({ done, total }),
+        groupModeRef.current
       );
       await beginProcessing(id);
     } catch (e) {
@@ -107,7 +115,7 @@ export default function AiImportPage() {
     setPhase("uploading");
     setUploadProgress({ done: list.length, total: list.length });
     try {
-      const id = await createUrlJob(shopId, list);
+      const id = await createUrlJob(shopId, list, groupModeRef.current);
       await beginProcessing(id);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erreur.");
@@ -185,6 +193,47 @@ export default function AiImportPage() {
 
       {phase === "idle" && (
         <div className="max-w-3xl space-y-6">
+          {/* Mode de regroupement */}
+          <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-4">
+            <p className="mb-3 text-sm font-semibold text-white/80">Mode d’import</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => setGroupMode("auto")}
+                className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                  groupMode === "auto"
+                    ? "border-violet-500/60 bg-violet-500/10"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                }`}
+              >
+                <Layers size={20} className={groupMode === "auto" ? "text-violet-300" : "text-white/50"} />
+                <span>
+                  <span className="block text-sm font-bold">Regrouper automatiquement</span>
+                  <span className="block text-xs text-white/50">
+                    L’IA regroupe les photos similaires d’un même produit (recommandé).
+                  </span>
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGroupMode("per_image")}
+                className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                  groupMode === "per_image"
+                    ? "border-violet-500/60 bg-violet-500/10"
+                    : "border-white/10 bg-white/[0.02] hover:border-white/25"
+                }`}
+              >
+                <ImageIcon size={20} className={groupMode === "per_image" ? "text-violet-300" : "text-white/50"} />
+                <span>
+                  <span className="block text-sm font-bold">Créer un produit par image</span>
+                  <span className="block text-xs text-white/50">
+                    Option avancée : chaque photo devient un produit distinct.
+                  </span>
+                </span>
+              </button>
+            </div>
+          </div>
+
           {/* Zone upload */}
           <div
             onDragOver={(e) => {

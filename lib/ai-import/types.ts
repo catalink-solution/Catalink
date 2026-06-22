@@ -31,6 +31,7 @@ export type ImportJob = {
   processed_files: number;
   detected_count: number;
   estimated_seconds: number | null;
+  group_mode: "auto" | "per_image";
   error: string | null;
   started_at: string | null;
   finished_at: string | null;
@@ -49,6 +50,9 @@ export type ImportFile = {
   detected_product_id: string | null;
   variant_label: string | null;
   sort_order: number;
+  phash: string | null;
+  dhash: string | null;
+  avg_hex: string | null;
   error: string | null;
   created_at: string;
 };
