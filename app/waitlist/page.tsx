@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 const CHANNELS = [
   { value: "snapchat", label: "Snapchat" },
@@ -115,22 +116,14 @@ export default function WaitlistPage() {
             value={shopName}
             onChange={(e) => setShopName(e.target.value)}
           />
-          <select
-            className="input w-full"
+          <CustomSelect
             name="channel"
             required
             value={channel}
-            onChange={(e) => setChannel(e.target.value)}
-          >
-            <option value="" disabled>
-              Canal principal *
-            </option>
-            {CHANNELS.map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.label}
-              </option>
-            ))}
-          </select>
+            onChange={setChannel}
+            placeholder="Canal principal *"
+            options={CHANNELS.map((c) => ({ value: c.value, label: c.label }))}
+          />
           {channel === "other" && (
             <input
               className="input"

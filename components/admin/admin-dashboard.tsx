@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { planLabel, SUBSCRIPTION_STATUS_LABELS, type SubscriptionStatus } from "@/lib/subscription";
 import type { AdminStats, AdminUserRow, AdminWaitlistRow, WaitlistStatus } from "@/lib/admin/types";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 async function getToken() {
   const { data } = await supabase.auth.getSession();
@@ -408,26 +409,25 @@ export function AdminDashboard() {
           <div className="relative w-full max-w-md rounded-2xl border border-white/10 bg-[#0f1117] p-6">
             <h3 className="text-lg font-bold">Modifier l&apos;abonnement</h3>
             <p className="mt-1 text-sm text-white/50">{editUser.email}</p>
-            <select
-              className="mt-4 w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm"
+            <CustomSelect
               value={editPlan}
-              onChange={(e) => setEditPlan(e.target.value)}
-            >
-              <option value="free">Free</option>
-              <option value="pro">Pro (49€/mois)</option>
-              <option value="business">Business (99€/mois)</option>
-            </select>
-            <select
-              className="mt-3 w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm"
+              onChange={setEditPlan}
+              className="mt-4"
+              options={[
+                { value: "free", label: "Free" },
+                { value: "pro", label: "Pro (49€/mois)" },
+                { value: "business", label: "Business (99€/mois)" },
+              ]}
+            />
+            <CustomSelect
               value={editStatus}
-              onChange={(e) => setEditStatus(e.target.value as SubscriptionStatus)}
-            >
-              {(Object.keys(SUBSCRIPTION_STATUS_LABELS) as SubscriptionStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {SUBSCRIPTION_STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setEditStatus(v as SubscriptionStatus)}
+              className="mt-3"
+              options={(Object.keys(SUBSCRIPTION_STATUS_LABELS) as SubscriptionStatus[]).map((s) => ({
+                value: s,
+                label: SUBSCRIPTION_STATUS_LABELS[s],
+              }))}
+            />
             <label className="mt-3 block text-xs text-white/50">Expiration (optionnel)</label>
             <input
               type="date"

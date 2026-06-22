@@ -12,6 +12,7 @@ import {
   type PricePosition,
   type LogoPosition,
 } from "@/lib/story-templates";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 const EMPTY_FORM = {
   name: "",
@@ -259,20 +260,12 @@ function Select({
   options: Array<{ value: string; label: string }>;
 }) {
   return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-medium text-white/60">{label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full min-h-[44px] rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-violet-500"
-      >
-        {options.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    </label>
+    <CustomSelect
+      label={label}
+      value={value}
+      onChange={onChange}
+      options={options}
+    />
   );
 }
 

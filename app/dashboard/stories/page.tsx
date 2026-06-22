@@ -12,6 +12,7 @@ import {
   type StoryTemplateConfig,
   type DbStoryTemplate,
 } from "@/lib/story-templates";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 type Product = {
   id: string;
@@ -194,44 +195,37 @@ export default function StoriesPage() {
 
           <div className="min-w-0 space-y-4">
             <Field label="Produit">
-              <select
+              <CustomSelect
                 value={selectedId ?? ""}
-                onChange={(e) => setSelectedId(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
-              >
-                {products.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} — {formatPrice(p.price)}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedId}
+                options={products.map((p) => ({
+                  value: p.id,
+                  label: `${p.name} — ${formatPrice(p.price)}`,
+                }))}
+              />
             </Field>
 
             <Field label="Template">
-              <select
+              <CustomSelect
                 value={templateId}
-                onChange={(e) => setTemplateId(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-violet-500"
-              >
-                <optgroup label="Templates par défaut">
-                  {BUILTIN_TEMPLATES.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                    </option>
-                  ))}
-                </optgroup>
-                {templates.filter((t) => !t.isBuiltin).length > 0 && (
-                  <optgroup label="Mes templates">
-                    {templates
-                      .filter((t) => !t.isBuiltin)
-                      .map((t) => (
-                        <option key={t.id} value={t.id}>
-                          {t.name}
-                        </option>
-                      ))}
-                  </optgroup>
-                )}
-              </select>
+                onChange={setTemplateId}
+                groups={[
+                  {
+                    label: "Templates par défaut",
+                    options: BUILTIN_TEMPLATES.map((t) => ({ value: t.id, label: t.name })),
+                  },
+                  ...(templates.filter((t) => !t.isBuiltin).length > 0
+                    ? [
+                        {
+                          label: "Mes templates",
+                          options: templates
+                            .filter((t) => !t.isBuiltin)
+                            .map((t) => ({ value: t.id, label: t.name })),
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             </Field>
 
             {template.showPromoCode && (

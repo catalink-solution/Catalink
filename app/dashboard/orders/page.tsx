@@ -23,6 +23,7 @@ import {
   statusMeta,
 } from "@/lib/order-status";
 import { awardLoyaltyOnDelivery } from "@/lib/loyalty";
+import { CustomSelect } from "@/components/ui/custom-select";
 import { syncTrackingStatus, isDeliveredStatus } from "@/lib/tracking-sync";
 import type { Order, OrderItem, TrackingEvent } from "@/lib/types";
 
@@ -297,17 +298,16 @@ export default function OrdersPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-extrabold">{formatPrice(order.total)}</p>
-                    <select
+                    <CustomSelect
                       value={statusKey}
-                      onChange={(e) => updateStatus(order.id, e.target.value)}
-                      className="mt-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs outline-none focus:border-violet-500"
-                    >
-                      {ORDER_STATUS_KEYS.map((k) => (
-                        <option key={k} value={k} className="bg-[#0f1117]">
-                          {ORDER_STATUS[k].label}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={(v) => updateStatus(order.id, v)}
+                      size="sm"
+                      options={ORDER_STATUS_KEYS.map((k) => ({
+                        value: k,
+                        label: ORDER_STATUS[k].label,
+                      }))}
+                      className="mt-1"
+                    />
                   </div>
                 </div>
 
@@ -362,20 +362,16 @@ export default function OrdersPage() {
                   <div className="flex flex-wrap items-end gap-2">
                     <label className="block">
                       <span className="mb-1 block text-xs text-white/50">Transporteur</span>
-                      <select
+                      <CustomSelect
                         value={draft.carrier}
-                        onChange={(e) => setDraft(order.id, { carrier: e.target.value })}
-                        className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-violet-500"
-                      >
-                        <option value="" className="bg-[#0f1117]">
-                          —
-                        </option>
-                        {CARRIERS.map((c) => (
-                          <option key={c} value={c} className="bg-[#0f1117]">
-                            {c}
-                          </option>
-                        ))}
-                      </select>
+                        onChange={(v) => setDraft(order.id, { carrier: v })}
+                        size="sm"
+                        placeholder="—"
+                        options={[
+                          { value: "", label: "—" },
+                          ...CARRIERS.map((c) => ({ value: c, label: c })),
+                        ]}
+                      />
                     </label>
 
                     <label className="block min-w-[180px] flex-1">

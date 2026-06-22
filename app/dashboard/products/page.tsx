@@ -14,6 +14,7 @@ import {
 } from "@/lib/stock";
 import type { ProductCategory, ProductImage, ProductVariant } from "@/lib/types";
 import { VariantEditor } from "@/components/dashboard/variant-editor";
+import { CustomSelect } from "@/components/ui/custom-select";
 import {
   EMPTY_VARIANT_DRAFT,
   loadProductVariants,
@@ -625,44 +626,30 @@ export default function ProductsPage() {
         </div>
 
         {/* Catégorie principale (obligatoire) */}
-        <label className="mb-1 block text-sm text-white/60">Catégorie principale *</label>
-        <select
-          className="w-full mb-3 p-3 rounded-xl bg-white/10 border border-white/10"
+        <CustomSelect
+          label="Catégorie principale *"
           value={mainCategory}
-          onChange={(e) => {
-            setMainCategory(e.target.value);
+          onChange={(v) => {
+            setMainCategory(v);
             setSelectedSizes([]);
           }}
-        >
-          <option value="" className="bg-[#030712]">
-            — Choisir —
-          </option>
-          {MAIN_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat} className="bg-[#030712]">
-              {cat}
-            </option>
-          ))}
-        </select>
+          placeholder="— Choisir —"
+          options={MAIN_CATEGORIES.map((cat) => ({ value: cat, label: cat }))}
+          className="mb-3"
+        />
 
-        {/* Catégorie personnalisée (optionnelle) */}
-        <label className="mb-1 block text-sm text-white/60">Catégorie personnalisée</label>
-        <select
-          className="w-full mb-2 p-3 rounded-xl bg-white/10 border border-white/10"
+        <CustomSelect
+          label="Catégorie personnalisée"
           value={customCategoryId}
-          onChange={(e) => setCustomCategoryId(e.target.value)}
-        >
-          <option value="" className="bg-[#030712]">
-            — Aucune —
-          </option>
-          {categories.map((cat) => (
-            <option key={cat.id} value={cat.id} className="bg-[#030712]">
-              {cat.name}
-            </option>
-          ))}
-          <option value={NEW_CATEGORY_VALUE} className="bg-[#030712]">
-            + Créer une nouvelle catégorie
-          </option>
-        </select>
+          onChange={setCustomCategoryId}
+          placeholder="— Aucune —"
+          options={[
+            { value: "", label: "— Aucune —" },
+            ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+            { value: NEW_CATEGORY_VALUE, label: "+ Créer une nouvelle catégorie" },
+          ]}
+          className="mb-2"
+        />
 
         {categories.length === 0 && customCategoryId !== NEW_CATEGORY_VALUE && (
           <p className="mb-3 text-xs text-white/40">
@@ -991,48 +978,31 @@ export default function ProductsPage() {
               )}
             </div>
 
-            {/* Catégorie principale */}
             <div>
-              <label className="mb-1 block text-sm text-white/60">Catégorie principale *</label>
-              <select
+              <CustomSelect
+                label="Catégorie principale *"
                 value={editMainCategory}
-                onChange={(e) => {
-                  setEditMainCategory(e.target.value);
+                onChange={(v) => {
+                  setEditMainCategory(v);
                   setEditSelectedSizes([]);
                 }}
-                className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-violet-500"
-              >
-                <option value="" className="bg-[#0f1117]">
-                  — Choisir —
-                </option>
-                {MAIN_CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat} className="bg-[#0f1117]">
-                    {cat}
-                  </option>
-                ))}
-              </select>
+                placeholder="— Choisir —"
+                options={MAIN_CATEGORIES.map((cat) => ({ value: cat, label: cat }))}
+              />
             </div>
 
-            {/* Catégorie personnalisée */}
             <div>
-              <label className="mb-1 block text-sm text-white/60">Catégorie personnalisée</label>
-              <select
+              <CustomSelect
+                label="Catégorie personnalisée"
                 value={editCustomCategoryId}
-                onChange={(e) => setEditCustomCategoryId(e.target.value)}
-                className="w-full p-3 rounded-xl bg-white/10 border border-white/10 text-white focus:outline-none focus:border-violet-500"
-              >
-                <option value="" className="bg-[#0f1117]">
-                  — Aucune —
-                </option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id} className="bg-[#0f1117]">
-                    {cat.name}
-                  </option>
-                ))}
-                <option value={NEW_CATEGORY_VALUE} className="bg-[#0f1117]">
-                  + Créer une nouvelle catégorie
-                </option>
-              </select>
+                onChange={setEditCustomCategoryId}
+                placeholder="— Aucune —"
+                options={[
+                  { value: "", label: "— Aucune —" },
+                  ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+                  { value: NEW_CATEGORY_VALUE, label: "+ Créer une nouvelle catégorie" },
+                ]}
+              />
               {categories.length === 0 && (
                 <p className="mt-1 text-xs text-white/40">Aucune catégorie personnalisée créée.</p>
               )}

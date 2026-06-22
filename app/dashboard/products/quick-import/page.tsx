@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { CustomSelect } from "@/components/ui/custom-select";
 import { MAIN_CATEGORIES } from "@/lib/categories";
 import { createQuickProduct, uploadProductImage } from "@/lib/quick-import/create-product";
 
@@ -365,20 +366,13 @@ export default function QuickImportPage() {
               value={price}
               onChange={(e) => setPrice(e.target.value)}
             />
-            <select
-              className="mb-3 w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm"
+            <CustomSelect
               value={mainCategory}
-              onChange={(e) => setMainCategory(e.target.value)}
-            >
-              <option value="" className="bg-[#0f1117]">
-                Catégorie *
-              </option>
-              {MAIN_CATEGORIES.map((c) => (
-                <option key={c} value={c} className="bg-[#0f1117]">
-                  {c}
-                </option>
-              ))}
-            </select>
+              onChange={setMainCategory}
+              placeholder="Catégorie *"
+              options={MAIN_CATEGORIES.map((c) => ({ value: c, label: c }))}
+              className="mb-3"
+            />
             <textarea
               className="mb-4 w-full rounded-xl border border-white/10 bg-white/10 p-3 text-sm"
               placeholder="Description (facultatif)"

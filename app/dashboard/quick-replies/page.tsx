@@ -13,6 +13,7 @@ import {
   type QuickReply,
   type QuickReplyVars,
 } from "@/lib/quick-replies";
+import { CustomSelect } from "@/components/ui/custom-select";
 
 export default function QuickRepliesPage() {
   const [loading, setLoading] = useState(true);
@@ -194,17 +195,14 @@ export default function QuickRepliesPage() {
             </label>
             <label className="block">
               <span className="mb-1 block text-xs text-white/60">Catégorie</span>
-              <select
+              <CustomSelect
                 value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full min-h-[44px] rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-violet-500"
-              >
-                {QUICK_REPLY_CATEGORIES.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+                onChange={setCategory}
+                options={QUICK_REPLY_CATEGORIES.map((c) => ({
+                  value: c.key,
+                  label: c.label,
+                }))}
+              />
             </label>
             <div className="flex flex-wrap items-end gap-1">
               {QUICK_REPLY_VARIABLES.map((v) => (
