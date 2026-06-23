@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { isPublicSignupAllowed } from "@/lib/signup-config";
 
 export function RegisterForm() {
   const [email, setEmail] = useState("");
@@ -13,6 +14,11 @@ export function RegisterForm() {
   async function handleRegister(e?: FormEvent) {
     e?.preventDefault();
     if (loading) return;
+
+    if (!isPublicSignupAllowed()) {
+      setMessage("Les inscriptions sont fermées. Rejoins la liste d'attente.");
+      return;
+    }
 
     if (!isSupabaseConfigured()) {
       setMessage("Configuration Supabase manquante sur ce déploiement.");

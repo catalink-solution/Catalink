@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
+import { fetchStorefrontShopBySlug } from "@/lib/storefront-shop";
 import { buildSocialLinks } from "@/lib/social";
 import { ProductCatalog } from "@/components/storefront/product-catalog";
 import { ReviewsSection } from "@/components/storefront/reviews-section";
@@ -13,7 +14,7 @@ type PageProps = {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const { data: shop } = await supabase
-    .from("shops")
+    .from("shops_storefront")
     .select("name, description")
     .eq("slug", slug)
     .maybeSingle();
@@ -67,11 +68,7 @@ function SocialLinks({ shop }: { shop: Shop }) {
 export default async function PublicShopPage({ params }: PageProps) {
   const { slug } = await params;
 
-  const { data: shopData } = await supabase
-    .from("shops")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
+  const { data: shopData } = await fetchStorefrontShopBySlug(slug);
 
   const shop = shopData as Shop | null;
   if (!shop) notFound();

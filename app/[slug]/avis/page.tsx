@@ -35,11 +35,17 @@ export default function ReviewPage({
 
   useEffect(() => {
     supabase
-      .from("shops")
-      .select("id")
+      .from("shops_storefront")
+      .select("id, is_suspended")
       .eq("slug", slug)
       .maybeSingle()
-      .then(({ data }) => setShopId(data?.id ?? null));
+      .then(({ data }) => {
+        if (data?.is_suspended) {
+          setError("Cette boutique est indisponible.");
+          return;
+        }
+        setShopId(data?.id ?? null);
+      });
   }, [slug]);
 
   async function lookup(e?: FormEvent) {

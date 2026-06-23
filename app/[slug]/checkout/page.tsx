@@ -34,11 +34,17 @@ export default function CheckoutPage({
 
   useEffect(() => {
     supabase
-      .from("shops")
-      .select("id, name, whatsapp")
+      .from("shops_storefront")
+      .select("id, name, whatsapp, is_suspended")
       .eq("slug", slug)
       .maybeSingle()
-      .then(({ data }) => setShop(data as ShopInfo | null));
+      .then(({ data }) => {
+        if (data?.is_suspended) {
+          setError("Cette boutique est indisponible.");
+          return;
+        }
+        setShop(data as ShopInfo | null);
+      });
   }, [slug]);
 
   // Sync contact info into abandoned cart as user fills the form
@@ -95,7 +101,11 @@ export default function CheckoutPage({
     setSubmitting(false);
 
     if (rpcError) {
-      setError("Une erreur est survenue : " + rpcError.message);
+      const msg =
+        rpcError.message.includes("shop_suspended")
+          ? "Cette boutique est indisponible."
+          : "Une erreur est survenue : " + rpcError.message;
+      setError(msg);
       return;
     }
 

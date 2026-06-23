@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ArrowLeft } from "lucide-react";
+import { fetchStorefrontShopBySlug } from "@/lib/storefront-shop";
 import { supabase } from "@/lib/supabase";
 import { formatPrice } from "@/lib/format";
 import { AddToCart } from "@/components/storefront/add-to-cart";
@@ -33,11 +34,7 @@ const EMPTY_VARIANTS = {
 };
 
 async function getData(slug: string, id: string) {
-  const { data: shopData } = await supabase
-    .from("shops")
-    .select("*")
-    .eq("slug", slug)
-    .maybeSingle();
+  const { data: shopData } = await fetchStorefrontShopBySlug(slug);
   const shop = shopData as Shop | null;
   if (!shop) return { shop: null, product: null, images: [], variants: [], variantData: EMPTY_VARIANTS };
 
