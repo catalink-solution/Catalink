@@ -11,7 +11,6 @@ export type SocialLink = {
   platform: SocialPlatform;
   label: string;
   href: string;
-  icon: string;
 };
 
 function isUrl(value: string): boolean {
@@ -39,7 +38,6 @@ export function buildSocialLinks(shop: Shop): SocialLink[] {
         platform: "whatsapp",
         label: "WhatsApp",
         href: `https://wa.me/${number}`,
-        icon: "/icons/social/whatsapp.png",
       });
     }
   }
@@ -50,7 +48,6 @@ export function buildSocialLinks(shop: Shop): SocialLink[] {
       platform: "snapchat",
       label: "Snapchat",
       href: isUrl(v) ? v.trim() : `https://www.snapchat.com/add/${handle(v)}`,
-      icon: "/icons/social/snapchat.png",
     });
   }
 
@@ -60,7 +57,6 @@ export function buildSocialLinks(shop: Shop): SocialLink[] {
       platform: "telegram",
       label: "Telegram",
       href: isUrl(v) ? v.trim() : `https://t.me/${handle(v)}`,
-      icon: "/icons/social/telegram.png",
     });
   }
 
@@ -70,7 +66,6 @@ export function buildSocialLinks(shop: Shop): SocialLink[] {
       platform: "instagram",
       label: "Instagram",
       href: isUrl(v) ? v.trim() : `https://www.instagram.com/${handle(v)}`,
-      icon: "/icons/social/instagram.png",
     });
   }
 
@@ -80,7 +75,6 @@ export function buildSocialLinks(shop: Shop): SocialLink[] {
       platform: "tiktok",
       label: "TikTok",
       href: isUrl(v) ? v.trim() : `https://www.tiktok.com/@${handle(v)}`,
-      icon: "/icons/social/tiktok.png",
     });
   }
 

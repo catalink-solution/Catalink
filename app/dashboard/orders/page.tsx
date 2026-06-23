@@ -25,20 +25,36 @@ import {
 import { awardLoyaltyOnDelivery } from "@/lib/loyalty";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { syncTrackingStatus, isDeliveredStatus } from "@/lib/tracking-sync";
+import { getCustomerNotificationType } from "@/lib/customer-order-status";
+import type { CustomerNotificationType } from "@/lib/customer-order-status";
+import { sellerNotifyHttpError } from "@/lib/order-notify-messages";
 import type { Order, OrderItem, TrackingEvent } from "@/lib/types";
 
 type OrderWithItems = Order & { order_items: OrderItem[] };
 
 type Draft = { carrier: string; number: string };
 
+type CustomerNotifyState = {
+  orderId: string;
+  messageText: string;
+  emailSent: boolean;
+  hasCustomerEmail: boolean;
+  orderPageUrl: string;
+  orderNumber: string;
+  orderStatusLabel: string;
+  manualFallbackRequired: boolean;
+};
+
 export default function OrdersPage() {
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
+  const [shopSlug, setShopSlug] = useState("");
   const [drafts, setDrafts] = useState<Record<string, Draft>>({});
   const [savedId, setSavedId] = useState<string | null>(null);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [eventsByOrder, setEventsByOrder] = useState<Record<string, TrackingEvent[]>>({});
   const [message, setMessage] = useState("");
+  const [customerNotify, setCustomerNotify] = useState<CustomerNotifyState | null>(null);
   const [filter, setFilter] = useState<string>("all");
 
   useEffect(() => {
@@ -57,7 +73,7 @@ export default function OrdersPage() {
 
     const { data: shop } = await supabase
       .from("shops")
-      .select("id")
+      .select("id, slug")
       .eq("user_id", user.id)
       .maybeSingle();
 
@@ -66,6 +82,8 @@ export default function OrdersPage() {
       setLoading(false);
       return;
     }
+
+    setShopSlug(shop.slug);
 
     const { data, error } = await supabase
       .from("orders")
@@ -109,22 +127,88 @@ export default function OrdersPage() {
     );
   }
 
+  async function notifyCustomer(
+    order: OrderWithItems,
+    notificationType: CustomerNotificationType
+  ) {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    const token = session?.access_token;
+    if (!token) {
+      setMessage(sellerNotifyHttpError(401));
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/email/order-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ orderId: order.id, notificationType }),
+      });
+      const json = (await res.json()) as {
+        error?: string;
+        messageText?: string;
+        emailSent?: boolean;
+        hasCustomerEmail?: boolean;
+        orderPageUrl?: string;
+        orderNumber?: string;
+        orderStatusLabel?: string;
+        manualFallbackRequired?: boolean;
+      };
+
+      if (!res.ok) {
+        setMessage(sellerNotifyHttpError(res.status, json.error));
+        return;
+      }
+
+      if (!json.messageText) {
+        setMessage("Notification client non envoyée : réponse serveur incomplète.");
+        return;
+      }
+
+      setCustomerNotify({
+        orderId: order.id,
+        messageText: json.messageText,
+        emailSent: Boolean(json.emailSent),
+        hasCustomerEmail: Boolean(json.hasCustomerEmail),
+        orderPageUrl: json.orderPageUrl ?? "",
+        orderNumber: json.orderNumber ?? order.id.slice(0, 8).toUpperCase(),
+        orderStatusLabel: json.orderStatusLabel ?? statusMeta(order.status).label,
+        manualFallbackRequired: Boolean(json.manualFallbackRequired),
+      });
+    } catch {
+      setMessage("Notification client non envoyée : erreur réseau.");
+    }
+  }
+
   async function updateStatus(orderId: string, status: string) {
     const order = orders.find((o) => o.id === orderId);
+    if (!order) return;
+
+    const previousStatus = order.status;
     const patch: Partial<Order> = { status };
     const now = new Date().toISOString();
-    if (status === "shipped" && order && !order.shipped_at) patch.shipped_at = now;
-    if (status === "delivered" && order && !order.delivered_at) patch.delivered_at = now;
-
-    const prev = orders;
-    patchOrder(orderId, patch);
+    if (status === "shipped" && !order.shipped_at) patch.shipped_at = now;
+    if (status === "delivered" && !order.delivered_at) patch.delivered_at = now;
 
     const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
     if (error) {
-      setOrders(prev);
       setMessage("Erreur mise à jour : " + error.message);
-    } else if (status === "delivered") {
+      return;
+    }
+
+    patchOrder(orderId, patch);
+
+    if (status === "delivered") {
       await awardLoyaltyOnDelivery(supabase, orderId);
+    }
+    const notifyType = getCustomerNotificationType(previousStatus, status);
+    if (notifyType) {
+      await notifyCustomer({ ...order, ...patch }, notifyType);
     }
   }
 
@@ -150,9 +234,18 @@ export default function OrdersPage() {
       setMessage("Erreur suivi : " + error.message);
       return;
     }
+
+    const previousStatus = order?.status;
     patchOrder(orderId, patch);
     setSavedId(orderId);
     setTimeout(() => setSavedId((id) => (id === orderId ? null : id)), 2000);
+
+    if (order && patch.status === "shipped") {
+      const notifyType = getCustomerNotificationType(previousStatus, "shipped");
+      if (notifyType) {
+        await notifyCustomer({ ...order, ...patch }, notifyType);
+      }
+    }
 
     if (number) refreshStatus(orderId, number);
   }
@@ -177,6 +270,7 @@ export default function OrdersPage() {
     }
 
     const order = orders.find((o) => o.id === orderId);
+    const previousStatus = order?.status;
     const patch: Partial<Order> = {
       tracking_status: result.trackingStatus,
       tracking_status_at: new Date().toISOString(),
@@ -190,11 +284,22 @@ export default function OrdersPage() {
       if (!order.delivered_at) patch.delivered_at = new Date().toISOString();
     }
 
-    await supabase.from("orders").update(patch).eq("id", orderId);
+    const { error: updateError } = await supabase.from("orders").update(patch).eq("id", orderId);
+    if (updateError) {
+      setMessage("Erreur mise à jour : " + updateError.message);
+      return;
+    }
+
     patchOrder(orderId, patch);
 
     if (patch.status === "delivered") {
       await awardLoyaltyOnDelivery(supabase, orderId);
+    }
+
+    const nextStatus = patch.status ?? previousStatus ?? "new";
+    const notifyType = getCustomerNotificationType(previousStatus, nextStatus);
+    if (notifyType && order) {
+      await notifyCustomer({ ...order, ...patch }, notifyType);
     }
 
     // Historique des événements transporteur : on remplace l'existant.
@@ -247,6 +352,58 @@ export default function OrdersPage() {
         <p className="mb-5 rounded-xl bg-white/5 px-4 py-3 text-sm text-white/70">{message}</p>
       )}
 
+      {customerNotify && (
+        <div className="mb-5 rounded-2xl border border-violet-500/30 bg-violet-500/10 p-4">
+          <p className="text-sm font-semibold text-violet-200">
+            {customerNotify.emailSent
+              ? `Email envoyé au client (commande #${customerNotify.orderNumber}).`
+              : customerNotify.manualFallbackRequired
+                ? "Email non envoyé automatiquement. Copiez ce message et envoyez-le au client."
+                : "Pas d'email client — envoie ce message manuellement :"}
+          </p>
+          <p className="mt-1 text-xs text-white/50">
+            Commande #{customerNotify.orderNumber} · Statut : {customerNotify.orderStatusLabel}
+          </p>
+          {!customerNotify.emailSent && (
+            <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl bg-black/30 p-3 text-xs text-white/80">
+              {customerNotify.messageText}
+            </pre>
+          )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {!customerNotify.emailSent && (
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(customerNotify.messageText);
+                  setMessage("Message copié.");
+                  setTimeout(() => setMessage(""), 3000);
+                }}
+                className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold hover:bg-violet-500"
+              >
+                Copier le message
+              </button>
+            )}
+            {customerNotify.orderPageUrl && (
+              <a
+                href={customerNotify.orderPageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs font-semibold hover:bg-white/5"
+              >
+                Page suivi client
+              </a>
+            )}
+            <button
+              type="button"
+              onClick={() => setCustomerNotify(null)}
+              className="rounded-lg px-3 py-1.5 text-xs text-white/50 hover:text-white"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="mb-6 flex flex-wrap gap-2">
         {["all", ...ORDER_STATUS_KEYS].map((key) => (
@@ -294,6 +451,19 @@ export default function OrdersPage() {
                     </div>
                     <p className="mt-1 text-xs text-white/40">
                       {formatDate(order.created_at)}
+                      {shopSlug && (
+                        <>
+                          {" · "}
+                          <a
+                            href={`/${shopSlug}/order/${order.id}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-violet-300 hover:text-violet-200"
+                          >
+                            Page client
+                          </a>
+                        </>
+                      )}
                     </p>
                   </div>
                   <div className="text-right">

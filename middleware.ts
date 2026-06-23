@@ -6,9 +6,18 @@ export function middleware(request: NextRequest) {
   if (request.nextUrl.pathname === "/register" && !isPublicSignupAllowed()) {
     return NextResponse.redirect(new URL("/waitlist", request.url));
   }
-  return NextResponse.next();
+
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-pathname", request.nextUrl.pathname);
+
+  return NextResponse.next({
+    request: { headers: requestHeaders },
+  });
 }
 
 export const config = {
-  matcher: "/register",
+  matcher: [
+    "/register",
+    "/((?!_next/static|_next/image|favicon.ico|icons/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$|api/).*)",
+  ],
 };

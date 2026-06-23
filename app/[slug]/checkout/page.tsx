@@ -2,7 +2,8 @@
 
 import { use, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useCart, lineId } from "@/components/storefront/cart-context";
 import {
@@ -19,9 +20,11 @@ export default function CheckoutPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
+  const router = useRouter();
   const { items, totalPrice, clear } = useCart();
 
   const [shop, setShop] = useState<ShopInfo | null>(null);
+  const [shopLoading, setShopLoading] = useState(true);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -30,24 +33,32 @@ export default function CheckoutPage({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<{ orderId: string; total: number } | null>(null);
 
   useEffect(() => {
+    setShopLoading(true);
     supabase
       .from("shops_storefront")
       .select("id, name, whatsapp, is_suspended")
       .eq("slug", slug)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data, error: shopError }) => {
+        setShopLoading(false);
+        if (shopError) {
+          setError("Impossible de charger la boutique. Réessaie dans un instant.");
+          return;
+        }
         if (data?.is_suspended) {
           setError("Cette boutique est indisponible.");
           return;
         }
-        setShop(data as ShopInfo | null);
+        if (!data) {
+          setError("Boutique introuvable.");
+          return;
+        }
+        setShop(data as ShopInfo);
       });
   }, [slug]);
 
-  // Sync contact info into abandoned cart as user fills the form
   useEffect(() => {
     if (!shop || items.length === 0) return;
     if (!name.trim() && !phone.trim() && !email.trim()) return;
@@ -84,93 +95,60 @@ export default function CheckoutPage({
 
     const contact = phone.trim() || email.trim();
     const { sessionId, refCode, promoCode } = getCheckoutAttribution(slug);
-    const { data, error: rpcError } = await supabase.rpc("create_order", {
-      p_shop_id: shop.id,
-      p_customer_name: name.trim(),
-      p_customer_contact: contact,
-      p_customer_address: address.trim() || null,
-      p_message: message.trim() || null,
-      p_items: payloadItems,
-      p_customer_email: email.trim() || null,
-      p_customer_phone: phone.trim() || null,
-      p_session_id: sessionId || null,
-      p_ref_code: refCode || null,
-      p_promo_code: promoCode || null,
-    });
 
-    setSubmitting(false);
+    let orderId: string;
+    try {
+      const { data, error: rpcError } = await supabase.rpc("create_order", {
+        p_shop_id: shop.id,
+        p_customer_name: name.trim(),
+        p_customer_contact: contact,
+        p_customer_address: address.trim() || null,
+        p_message: message.trim() || null,
+        p_items: payloadItems,
+        p_customer_email: email.trim() || null,
+        p_customer_phone: phone.trim() || null,
+        p_session_id: sessionId || null,
+        p_ref_code: refCode || null,
+        p_promo_code: promoCode || null,
+      });
 
-    if (rpcError) {
-      const msg =
-        rpcError.message.includes("shop_suspended")
+      if (rpcError) {
+        const msg = rpcError.message.includes("shop_suspended")
           ? "Cette boutique est indisponible."
-          : "Une erreur est survenue : " + rpcError.message;
-      setError(msg);
+          : rpcError.message.includes("out_of_stock")
+            ? "Un produit n'est plus disponible en stock."
+            : rpcError.message.includes("product_unavailable")
+              ? "Un produit de ton panier n'est plus disponible."
+              : "Impossible de créer la commande. Réessaie ou contacte le vendeur.";
+        setError(msg);
+        setSubmitting(false);
+        return;
+      }
+
+      orderId = data as string;
+    } catch {
+      setError("Erreur réseau lors de la création de commande. Vérifie ta connexion.");
+      setSubmitting(false);
       return;
     }
 
-    const orderId = data as string;
-    setSuccess({ orderId, total: totalPrice });
     clear();
 
-    // Email notification to shop owner (non-blocking)
     fetch("/api/email/order", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ orderId }),
     }).catch(() => {});
+
+    const qs = shop.whatsapp ? "?whatsapp=1" : "";
+    router.push(`/${slug}/order/${orderId}${qs}`);
   }
 
-  if (success) {
-    const waText = encodeURIComponent(
-      `Bonjour ${shop?.name ?? ""}, je viens de passer la commande n°${success.orderId.slice(
-        0,
-        8
-      )} pour un total de ${formatPrice(success.total)}.`
-    );
+  if (shopLoading) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6">
-        <CheckCircle2 size={56} className="mx-auto text-green-400" />
-        <h1 className="mt-5 text-3xl font-extrabold tracking-tight">Commande envoyée !</h1>
-        <p className="mt-3 text-white/60">
-          Ta commande a bien été enregistrée. Le vendeur va te recontacter rapidement.
-        </p>
-        <div className="mx-auto mt-6 max-w-sm rounded-2xl border border-white/10 bg-white/[0.02] p-5 text-left">
-          <div className="flex justify-between text-sm">
-            <span className="text-white/50">N° de commande</span>
-            <span className="font-mono">{success.orderId.slice(0, 8)}</span>
-          </div>
-          <div className="mt-2 flex justify-between text-sm">
-            <span className="text-white/50">Total</span>
-            <span className="font-bold">{formatPrice(success.total)}</span>
-          </div>
-        </div>
-        <p className="mt-4 text-xs text-white/40">
-          Conserve ton n° de commande — tu pourras laisser un avis une fois livré sur{" "}
-          <Link href={`/${slug}/avis`} className="text-violet-300 hover:text-violet-200">
-            la page avis
-          </Link>
-          .
-        </p>
-
-        <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
-          {shop?.whatsapp && (
-            <a
-              href={`https://wa.me/${shop.whatsapp.replace(/\D/g, "")}?text=${waText}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500"
-            >
-              Confirmer sur WhatsApp
-            </a>
-          )}
-          <Link
-            href={`/${slug}`}
-            className="rounded-xl border border-white/15 bg-white/5 px-6 py-3 font-semibold text-white hover:bg-white/10"
-          >
-            Retour à la boutique
-          </Link>
-        </div>
+      <div className="mx-auto flex max-w-3xl flex-col items-center px-4 py-20 sm:px-6">
+        <Loader2 size={36} className="animate-spin text-violet-400" />
+        <p className="mt-4 text-white/60">Chargement…</p>
       </div>
     );
   }
@@ -200,7 +178,6 @@ export default function CheckoutPage({
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-[1fr_320px]">
-          {/* Form */}
           <form
             onSubmit={submit}
             className="relative z-10 space-y-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5"
@@ -268,23 +245,26 @@ export default function CheckoutPage({
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !shop}
               className="btn-touch w-full rounded-xl px-6 py-3.5 font-bold text-white transition-all disabled:opacity-50"
               style={{ background: "linear-gradient(to right,#3b82f6,#7c3aed)" }}
             >
-              {submitting ? "Envoi en cours…" : "Envoyer ma commande"}
+              {submitting ? (
+                <span className="inline-flex items-center justify-center gap-2">
+                  <Loader2 size={18} className="animate-spin" />
+                  Création de la commande…
+                </span>
+              ) : (
+                "Envoyer ma commande"
+              )}
             </button>
           </form>
 
-          {/* Summary */}
           <div className="h-fit rounded-2xl border border-white/10 bg-white/[0.02] p-5">
             <h2 className="mb-4 font-bold">Récapitulatif</h2>
             <div className="space-y-3">
               {items.map((item) => (
-                <div
-                  key={lineId(item)}
-                  className="flex justify-between gap-3 text-sm"
-                >
+                <div key={lineId(item)} className="flex justify-between gap-3 text-sm">
                   <span className="min-w-0 text-white/70">
                     <span className="font-medium text-white">{item.quantity}×</span>{" "}
                     {item.name}
@@ -304,6 +284,10 @@ export default function CheckoutPage({
               <span>Total</span>
               <span>{formatPrice(totalPrice)}</span>
             </div>
+            <p className="mt-3 text-xs text-white/40">
+              Après validation, tu seras redirigé vers WhatsApp pour finaliser le paiement avec le
+              vendeur.
+            </p>
           </div>
         </div>
       )}

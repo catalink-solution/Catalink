@@ -1,4 +1,8 @@
 import { Resend } from "resend";
+import {
+  buildCustomerNotificationHtml,
+  customerNotificationSubject,
+} from "@/lib/order-notification-templates";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -54,6 +58,57 @@ export async function sendOrderNotificationEmail(
         <p style="margin-top:24px;font-size:12px;color:#999">Catalink · ${escapeHtml(payload.shopSlug)}</p>
       </div>
     `,
+  });
+
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export type CustomerOrderStatusEmailPayload = {
+  to: string;
+  type: "confirmed" | "shipped" | "delivered";
+  shopName: string;
+  orderId: string;
+  customerName: string;
+  total: number;
+  createdAt?: string | null;
+  items: Array<{
+    product_name: string;
+    quantity: number;
+    unit_price: number;
+    variant_label?: string | null;
+    size?: string | null;
+  }>;
+  trackingNumber?: string | null;
+  trackingCarrier?: string | null;
+  orderPageUrl: string;
+};
+
+export async function sendCustomerOrderStatusEmail(
+  payload: CustomerOrderStatusEmailPayload
+): Promise<{ ok: boolean; error?: string }> {
+  if (!resend) {
+    return { ok: false, error: "RESEND_API_KEY not configured" };
+  }
+
+  const ctx = {
+    orderId: payload.orderId,
+    shopName: payload.shopName,
+    shopSlug: "",
+    customerName: payload.customerName,
+    total: payload.total,
+    createdAt: payload.createdAt,
+    items: payload.items,
+    trackingNumber: payload.trackingNumber,
+    trackingCarrier: payload.trackingCarrier,
+    orderPageUrl: payload.orderPageUrl,
+  };
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: payload.to,
+    subject: customerNotificationSubject(payload.type, payload.shopName),
+    html: buildCustomerNotificationHtml(payload.type, ctx),
   });
 
   if (error) return { ok: false, error: error.message };

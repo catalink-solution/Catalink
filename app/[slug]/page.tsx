@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { fetchStorefrontShopBySlug } from "@/lib/storefront-shop";
 import { buildSocialLinks } from "@/lib/social";
+import { SocialIcon } from "@/components/storefront/social-icon";
 import { ProductCatalog } from "@/components/storefront/product-catalog";
 import { ReviewsSection } from "@/components/storefront/reviews-section";
 import type { Product, ProductCategory, Review, Shop } from "@/lib/types";
@@ -51,13 +52,9 @@ function SocialLinks({ shop }: { shop: Shop }) {
           className="inline-flex"
           style={{ ["--glow"]: SOCIAL_GLOW[l.platform] ?? "#ffffff" } as React.CSSProperties}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={l.icon}
-            alt={l.label}
-            width={72}
-            height={72}
-            className="h-16 w-16 object-contain transition-all duration-300 ease-out will-change-transform hover:scale-110 hover:drop-shadow-[0_0_16px_var(--glow)] sm:h-[72px] sm:w-[72px]"
+          <SocialIcon
+            platform={l.platform}
+            className="h-16 w-16 transition-all duration-300 ease-out will-change-transform hover:scale-110 hover:drop-shadow-[0_0_16px_var(--glow)] sm:h-[72px] sm:w-[72px]"
           />
         </a>
       ))}
