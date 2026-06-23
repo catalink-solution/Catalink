@@ -21,6 +21,7 @@ import {
   saveProductVariants,
   type VariantDraft,
 } from "@/lib/variant-store";
+import { ContextualTip } from "@/components/dashboard/contextual-tip";
 
 type Product = {
   id: string;
@@ -525,6 +526,8 @@ export default function ProductsPage() {
           <span className="text-white/30">· Plan {planLabel(plan)}</span>
         </span>
       </div>
+
+      <ContextualTip page="products" />
 
       {/* ── Import Rapide ── */}
       <div

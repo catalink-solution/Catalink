@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, ExternalLink } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { ContextualTip } from "@/components/dashboard/contextual-tip";
 
 export default function ShopPage() {
   const [shopId, setShopId] = useState<string | null>(null);
@@ -173,6 +174,7 @@ export default function ShopPage() {
   return (
     <main className="p-4 sm:p-6 md:p-10">
       <h1 className="mb-2 text-3xl font-extrabold tracking-tight">Ma boutique</h1>
+      <ContextualTip page="shop" />
       <p className="mb-8 text-white/50">Configure ton catalogue public.</p>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">

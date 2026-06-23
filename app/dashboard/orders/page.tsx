@@ -29,6 +29,7 @@ import { getCustomerNotificationType } from "@/lib/customer-order-status";
 import type { CustomerNotificationType } from "@/lib/customer-order-status";
 import { sellerNotifyHttpError } from "@/lib/order-notify-messages";
 import type { Order, OrderItem, TrackingEvent } from "@/lib/types";
+import { ContextualTip } from "@/components/dashboard/contextual-tip";
 
 type OrderWithItems = Order & { order_items: OrderItem[] };
 
@@ -347,6 +348,8 @@ export default function OrdersPage() {
         <h1 className="text-3xl font-extrabold tracking-tight">Commandes</h1>
         <span className="text-sm text-white/40">{orders.length} commande(s)</span>
       </div>
+
+      <ContextualTip page="orders" />
 
       {message && (
         <p className="mb-5 rounded-xl bg-white/5 px-4 py-3 text-sm text-white/70">{message}</p>

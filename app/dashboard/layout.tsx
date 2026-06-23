@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { OnboardingBanner } from "@/components/dashboard/onboarding-banner";
 import { PwaInstallPrompt } from "@/components/dashboard/pwa-install-prompt";
 
 async function fetchAuthContext(token: string) {
@@ -73,6 +74,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
       <DashboardNav />
       <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
         <PwaInstallPrompt />
+        <OnboardingBanner />
         {children}
       </div>
     </div>
