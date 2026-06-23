@@ -778,9 +778,9 @@ function Footer() {
             {
               title: "Légal",
               links: [
-                ["Mentions légales", "#"],
-                ["Confidentialité", "#"],
-                ["CGU", "#"],
+                ["Mentions légales", "/mentions-legales"],
+                ["Confidentialité", "/confidentialite"],
+                ["CGU", "/cgu"],
               ],
             },
             {
