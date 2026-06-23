@@ -19,6 +19,7 @@ import {
   ExternalLink,
   MessageSquare,
   Crown,
+  Settings,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { NotificationBell } from "@/components/dashboard/notification-bell";
@@ -38,6 +39,7 @@ const links = [
   { href: "/dashboard/reviews", label: "Avis", icon: Star },
   { href: "/dashboard/stories", label: "Stories", icon: Sparkles },
   { href: "/dashboard/statistics", label: "Statistiques", icon: BarChart3 },
+  { href: "/dashboard/settings", label: "Paramètres", icon: Settings },
 ];
 
 export function DashboardNav() {

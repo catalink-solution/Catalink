@@ -17,6 +17,11 @@ export type Shop = {
   subscription_status?: string | null;
   subscription_started_at?: string | null;
   subscription_expires_at?: string | null;
+  owner_first_name?: string | null;
+  owner_last_name?: string | null;
+  notify_order_email?: boolean;
+  notify_status_email?: boolean;
+  notify_catalink_marketing?: boolean;
 };
 
 export type ProductCategory = {

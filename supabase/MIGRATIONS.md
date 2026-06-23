@@ -27,6 +27,7 @@ Migrations appliquées en prod (ordre chronologique) :
 | 20260622213318 | waitlist_unique_and_status |
 | 20260623120000 | security_sprint_pre_launch *(partiellement via MCP en 3 blocs)* |
 | 20260623140000 | customer_order_tracking |
+| 20260624120000 | vendor_settings |
 
 ## Fichiers locaux (`supabase/migrations/`)
 
