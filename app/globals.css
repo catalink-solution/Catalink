@@ -323,6 +323,27 @@ button {
   }
 }
 
+@keyframes catalinkBubbleFloat {
+  0%,
+  100% {
+    transform: translateY(0) rotate(var(--bubble-rotate, 0deg));
+  }
+  50% {
+    transform: translateY(-3px) rotate(calc(var(--bubble-rotate, 0deg) + 0.5deg));
+  }
+}
+
+.catalink-problem-bubble {
+  animation: catalinkBubbleFloat 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .catalink-problem-bubble {
+    animation: none;
+    transform: rotate(var(--bubble-rotate, 0deg));
+  }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
