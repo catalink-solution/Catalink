@@ -55,8 +55,12 @@ export const metadata: Metadata = {
   },
   formatDetection: { telephone: false },
   icons: {
-    icon: [{ url: "/icons/icon-192", sizes: "192x192", type: "image/png" }],
-    apple: [{ url: "/icons/icon-192", sizes: "192x192", type: "image/png" }],
+    icon: [
+      { url: "/icon", sizes: "512x512", type: "image/png" },
+      { url: "/icons/icon-192", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
   },
 };
 

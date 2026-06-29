@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <defs>
-    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#3b82f6"/>
-      <stop offset="100%" stop-color="#7c3aed"/>
+    <linearGradient id="catalink-g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8B5CF6"/>
+      <stop offset="50%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#2563EB"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="108" fill="#030712"/>
-  <rect x="32" y="32" width="448" height="448" rx="88" fill="url(#g)" opacity="0.15"/>
-  <text x="256" y="340" text-anchor="middle" font-family="system-ui,sans-serif" font-size="280" font-weight="800" fill="url(#g)">C</text>
+  <path
+    fill="url(#catalink-g)"
+    d="M128 156c0-44 36-80 80-80h88c66 0 120 54 120 120s-54 120-120 120h-52v72c0 22-18 40-40 40s-40-18-40-40V156zm80 0v120h88c22 0 40-18 40-40s-18-40-40-40h-88z"
+  />
+  <ellipse cx="292" cy="248" rx="28" ry="18" fill="#2563EB" transform="rotate(-35 292 248)"/>
 </svg>

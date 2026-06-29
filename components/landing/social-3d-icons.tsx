@@ -41,35 +41,39 @@ const SOCIAL_POSITIONS = [
   },
 ] as const;
 
+/** Glow mobile — sans ombre noire pour éviter l’effet carré sur fond sombre */
+const MOBILE_SOCIAL_GLOWS = {
+  Snapchat:
+    "drop-shadow(0 0 14px rgba(255,223,0,0.6)) drop-shadow(0 0 26px rgba(255,193,7,0.38))",
+  TikTok:
+    "drop-shadow(0 0 12px rgba(0,242,234,0.45)) drop-shadow(0 0 22px rgba(255,45,85,0.32))",
+  Instagram:
+    "drop-shadow(0 0 14px rgba(236,72,153,0.55)) drop-shadow(0 0 24px rgba(249,115,22,0.35))",
+  Telegram:
+    "drop-shadow(0 0 14px rgba(34,158,255,0.58)) drop-shadow(0 0 24px rgba(56,189,248,0.38))",
+} as const;
+
 /** Icônes mobile — colonne à gauche du téléphone (hors scale du mockup) */
 const MOBILE_SOCIAL_ICONS = [
   {
     src: HERO_ASSETS.snapchat,
-    alt: "Snapchat",
+    alt: "Snapchat" as const,
     size: 40,
-    glow:
-      "drop-shadow(0 6px 14px rgba(0,0,0,0.55)) drop-shadow(0 0 16px rgba(255,223,0,0.68)) drop-shadow(0 0 28px rgba(255,193,7,0.4))",
   },
   {
     src: HERO_ASSETS.tiktok,
-    alt: "TikTok",
+    alt: "TikTok" as const,
     size: 42,
-    glow:
-      "drop-shadow(0 6px 14px rgba(0,0,0,0.55)) drop-shadow(0 0 14px rgba(0,242,234,0.5)) drop-shadow(0 0 26px rgba(255,45,85,0.36))",
   },
   {
     src: HERO_ASSETS.instagram,
-    alt: "Instagram",
+    alt: "Instagram" as const,
     size: 40,
-    glow:
-      "drop-shadow(0 6px 14px rgba(0,0,0,0.55)) drop-shadow(0 0 16px rgba(236,72,153,0.6)) drop-shadow(0 0 28px rgba(249,115,22,0.4))",
   },
   {
     src: HERO_ASSETS.telegram,
-    alt: "Telegram",
+    alt: "Telegram" as const,
     size: 40,
-    glow:
-      "drop-shadow(0 6px 14px rgba(0,0,0,0.55)) drop-shadow(0 0 16px rgba(34,158,255,0.65)) drop-shadow(0 0 28px rgba(56,189,248,0.42))",
   },
 ] as const;
 
@@ -130,7 +134,7 @@ export function HeroSocialIconsMobile() {
       {MOBILE_SOCIAL_ICONS.map((icon, i) => (
         <div
           key={`m-${icon.alt}`}
-          className="animate-float shrink-0"
+          className="animate-float shrink-0 bg-transparent"
           style={{
             animationDelay: `${i * 0.6}s`,
             animationDuration: "5.5s",
@@ -142,11 +146,12 @@ export function HeroSocialIconsMobile() {
             alt={icon.alt}
             width={icon.size}
             height={icon.size}
-            className="h-[38px] w-[38px] object-contain max-[375px]:h-[34px] max-[375px]:w-[34px] sm:h-10 sm:w-10"
+            unoptimized
+            className="h-[38px] w-[38px] bg-transparent object-contain mix-blend-screen max-[375px]:h-[34px] max-[375px]:w-[34px] sm:h-10 sm:w-10"
             style={{
               width: icon.size,
               height: icon.size,
-              filter: icon.glow,
+              filter: MOBILE_SOCIAL_GLOWS[icon.alt],
             }}
           />
         </div>
