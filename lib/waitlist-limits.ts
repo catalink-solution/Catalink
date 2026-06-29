@@ -4,6 +4,7 @@ export const WAITLIST_FIELD_LIMITS = {
   email: 254,
   shopName: 100,
   channelOther: 80,
+  phone: 30,
 } as const;
 
 export type WaitlistFieldKey = keyof typeof WAITLIST_FIELD_LIMITS;

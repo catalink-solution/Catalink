@@ -18,6 +18,10 @@ function waitlistErrorMessage(error?: string): string {
   switch (error) {
     case "duplicate_email":
       return "Cette adresse email est déjà inscrite sur la liste d'attente.";
+    case "duplicate_phone":
+      return "Ce numéro est déjà inscrit.";
+    case "invalid_phone":
+      return "Numéro de téléphone invalide.";
     case "invalid_email":
       return "Adresse email invalide.";
     case "channel_other_required":
@@ -43,6 +47,7 @@ export default function WaitlistPage() {
   const formStartedAt = useRef(Date.now());
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [shopName, setShopName] = useState("");
   const [channel, setChannel] = useState("");
   const [channelOther, setChannelOther] = useState("");
@@ -64,6 +69,7 @@ export default function WaitlistPage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
+          phone: phone.trim(),
           shopName: shopName.trim(),
           channel,
           channelOther: channel === "other" ? channelOther.trim() : undefined,
@@ -85,6 +91,7 @@ export default function WaitlistPage() {
       });
       setName("");
       setEmail("");
+      setPhone("");
       setShopName("");
       setChannel("");
       setChannelOther("");
@@ -169,6 +176,18 @@ export default function WaitlistPage() {
             maxLength={WAITLIST_FIELD_LIMITS.email}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+          />
+          <input
+            className="input"
+            aria-label="Téléphone WhatsApp"
+            placeholder="+33 6 12 34 56 78"
+            type="tel"
+            name="phone"
+            autoComplete="tel"
+            required
+            maxLength={WAITLIST_FIELD_LIMITS.phone}
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
           />
           <input
             className="input"

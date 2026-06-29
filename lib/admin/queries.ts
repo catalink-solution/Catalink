@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { planMrr, resolvePlan } from "@/lib/subscription";
 import { isAdminEmail } from "./auth";
+import {
+  authUserByEmail,
+  isWaitlistProspectRegistered,
+  listAllAuthUsersLite,
+  type AuthUserLite,
+} from "./waitlist-auth";
 import type { AdminStats, AdminUserRow, AdminWaitlistRow, WaitlistStatus } from "./types";
 
 type ShopRow = {
@@ -123,6 +129,7 @@ export async function fetchAdminStats(admin: SupabaseClient): Promise<AdminStats
   const newUsers7d = users.filter((u) => u.created_at >= sevenDaysAgo).length;
 
   const waitlistRows = (waitlistRes.data ?? []) as { id: string; status: string }[];
+  const activeWaitlist = waitlistRows.filter((w) => w.status !== "declined");
 
   return {
     totalUsers: users.length,
@@ -134,8 +141,9 @@ export async function fetchAdminStats(admin: SupabaseClient): Promise<AdminStats
     newUsers7d,
     activeSubscriptions,
     expiredSubscriptions,
-    waitlistCount: waitlistRes.count ?? waitlistRows.length,
+    waitlistCount: activeWaitlist.length,
     waitlistPending: waitlistRows.filter((w) => w.status === "pending").length,
+    waitlistInvited: waitlistRows.filter((w) => w.status === "invited").length,
   };
 }
 
@@ -143,6 +151,8 @@ type WaitlistDbRow = {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
+  phone_normalized: string | null;
   shop_name: string;
   channel: string;
   channel_other: string | null;
@@ -154,10 +164,15 @@ type WaitlistDbRow = {
 
 function resolveWaitlistStatus(
   row: WaitlistDbRow,
-  registeredEmails: Set<string>
+  authByEmail: Map<string, AuthUserLite>
 ): WaitlistStatus {
-  if (registeredEmails.has(row.email.trim().toLowerCase())) return "registered";
-  if (row.status === "invited") return "invited";
+  if (row.status === "declined") return "declined";
+
+  const email = row.email.trim().toLowerCase();
+  const authUser = authByEmail.get(email);
+
+  if (isWaitlistProspectRegistered(authUser)) return "registered";
+  if (row.status === "invited" || authUser) return "invited";
   return "pending";
 }
 
@@ -166,22 +181,33 @@ export async function fetchAdminWaitlist(admin: SupabaseClient): Promise<AdminWa
     admin
       .from("waitlist_requests")
       .select(
-        "id, name, email, shop_name, channel, channel_other, status, invited_at, invited_by, created_at"
+        "id, name, email, phone, phone_normalized, shop_name, channel, channel_other, status, invited_at, invited_by, created_at"
       )
+      .neq("status", "declined")
       .order("created_at", { ascending: false }),
-    listAllAuthUsers(admin),
+    listAllAuthUsersLite(admin),
   ]);
 
-  const registeredEmails = new Set(
-    authUsers.map((u) => u.email?.trim().toLowerCase()).filter(Boolean) as string[]
-  );
+  const authByEmail = authUserByEmail(authUsers);
 
-  return ((waitlistRes.data ?? []) as WaitlistDbRow[]).map((row) => {
-    const status = resolveWaitlistStatus(row, registeredEmails);
+  const rows = (waitlistRes.data ?? []) as WaitlistDbRow[];
+
+  for (const row of rows) {
+    const displayStatus = resolveWaitlistStatus(row, authByEmail);
+    if (displayStatus === "registered" && row.status !== "registered") {
+      await admin.from("waitlist_requests").update({ status: "registered" }).eq("id", row.id);
+      row.status = "registered";
+    }
+  }
+
+  return rows.map((row) => {
+    const status = resolveWaitlistStatus(row, authByEmail);
     return {
       id: row.id,
       name: row.name,
       email: row.email,
+      phone: row.phone,
+      phoneNormalized: row.phone_normalized,
       shopName: row.shop_name,
       channel: row.channel,
       channelOther: row.channel_other,

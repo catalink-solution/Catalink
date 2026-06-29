@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logAdminAction } from "./queries";
 import { assertNotPlatformAdmin } from "./protection";
+import {
+  authUserByEmail,
+  getInviteRedirectUrl,
+  isWaitlistProspectRegistered,
+  listAllAuthUsersLite,
+} from "./waitlist-auth";
 
 const BAN_DURATION = "876000h"; // ~100 ans
 
@@ -87,6 +93,15 @@ export async function updateSubscription(
   await logAdminAction(admin, adminEmail, "update_subscription", { userId, shopId }, data);
 }
 
+type WaitlistRow = {
+  id: string;
+  email: string;
+  name: string;
+  shop_name: string;
+  phone: string | null;
+  status: string;
+};
+
 export async function inviteWaitlistProspect(
   admin: SupabaseClient,
   adminEmail: string,
@@ -94,34 +109,32 @@ export async function inviteWaitlistProspect(
 ) {
   const { data: row, error: fetchErr } = await admin
     .from("waitlist_requests")
-    .select("id, email, name, status")
+    .select("id, email, name, shop_name, phone, status")
     .eq("id", waitlistId)
     .maybeSingle();
 
   if (fetchErr) throw fetchErr;
   if (!row) throw new Error("not_found");
 
-  const email = (row as { email: string }).email.trim().toLowerCase();
+  const typed = row as WaitlistRow;
+  if (typed.status === "declined") throw new Error("declined");
 
-  const { data: existingUsers } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
-  const alreadyRegistered = existingUsers.users.some(
-    (u) => u.email?.trim().toLowerCase() === email
-  );
-  if (alreadyRegistered) {
-    await admin
-      .from("waitlist_requests")
-      .update({ status: "registered" })
-      .eq("id", waitlistId);
+  const email = typed.email.trim().toLowerCase();
+  const authUsers = await listAllAuthUsersLite(admin);
+  const byEmail = authUserByEmail(authUsers);
+  const authUser = byEmail.get(email);
+
+  if (isWaitlistProspectRegistered(authUser)) {
+    await admin.from("waitlist_requests").update({ status: "registered" }).eq("id", waitlistId);
     throw new Error("already_registered");
   }
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
-
-  const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
-    redirectTo: `${appUrl}/login`,
-  });
-  if (inviteErr) throw inviteErr;
+  const redirectTo = getInviteRedirectUrl();
+  const { error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
+  if (inviteErr) {
+    console.error("[waitlist] inviteUserByEmail failed:", inviteErr);
+    throw new Error("invite_email_failed");
+  }
 
   const now = new Date().toISOString();
   const { error: updateErr } = await admin
@@ -139,6 +152,61 @@ export async function inviteWaitlistProspect(
     adminEmail,
     "invite_waitlist",
     {},
-    { waitlistId, email, name: (row as { name: string }).name }
+    {
+      waitlistId,
+      email,
+      name: typed.name,
+      shop_name: typed.shop_name,
+      phone: typed.phone,
+      invited_by: adminEmail,
+      invited_at: now,
+    }
+  );
+}
+
+export async function declineWaitlistProspect(
+  admin: SupabaseClient,
+  adminEmail: string,
+  waitlistId: string
+) {
+  const { data: row, error: fetchErr } = await admin
+    .from("waitlist_requests")
+    .select("id, email, shop_name, phone, status")
+    .eq("id", waitlistId)
+    .maybeSingle();
+
+  if (fetchErr) throw fetchErr;
+  if (!row) throw new Error("not_found");
+
+  const typed = row as WaitlistRow;
+  if (typed.status === "declined") return;
+
+  const previousStatus = typed.status;
+  const now = new Date().toISOString();
+
+  const { error: updateErr } = await admin
+    .from("waitlist_requests")
+    .update({
+      status: "declined",
+      declined_at: now,
+      declined_by: adminEmail,
+    })
+    .eq("id", waitlistId);
+  if (updateErr) throw updateErr;
+
+  await logAdminAction(
+    admin,
+    adminEmail,
+    "decline_waitlist",
+    {},
+    {
+      waitlistId,
+      email: typed.email,
+      shop_name: typed.shop_name,
+      phone: typed.phone,
+      previous_status: previousStatus,
+      declined_by: adminEmail,
+      declined_at: now,
+    }
   );
 }

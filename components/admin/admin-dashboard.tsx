@@ -20,6 +20,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { planLabel, SUBSCRIPTION_STATUS_LABELS, type SubscriptionStatus } from "@/lib/subscription";
 import type { AdminStats, AdminUserRow, AdminWaitlistRow, WaitlistStatus } from "@/lib/admin/types";
+import { whatsAppUrl } from "@/lib/waitlist-phone";
 import { CustomSelect } from "@/components/ui/custom-select";
 
 async function getToken() {
@@ -67,12 +68,14 @@ const WAITLIST_STATUS_LABEL: Record<WaitlistStatus, string> = {
   pending: "En attente",
   invited: "Invité",
   registered: "Inscrit",
+  declined: "Décliné",
 };
 
 const WAITLIST_STATUS_BADGE: Record<WaitlistStatus, string> = {
   pending: "bg-amber-500/15 text-amber-300",
   invited: "bg-blue-500/15 text-blue-300",
   registered: "bg-green-500/15 text-green-300",
+  declined: "bg-red-500/15 text-red-300",
 };
 
 const CHANNEL_LABEL: Record<string, string> = {
@@ -94,6 +97,7 @@ export function AdminDashboard() {
   const [waitlist, setWaitlist] = useState<AdminWaitlistRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyWaitlistId, setBusyWaitlistId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<AdminUserRow | null>(null);
@@ -166,18 +170,50 @@ export function AdminDashboard() {
   async function inviteProspect(row: AdminWaitlistRow) {
     setBusyWaitlistId(row.id);
     setError(null);
+    setNotice(null);
     const res = await adminFetch(`/api/admin/waitlist/${row.id}/invite`, { method: "POST" });
     setBusyWaitlistId(null);
 
     if (res.status === 409) {
-      setError("Ce prospect a déjà un compte Catalink.");
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      setError(
+        json.error === "already_registered"
+          ? "Ce prospect a déjà un compte Catalink actif."
+          : "Action impossible pour ce prospect."
+      );
       await load();
       return;
     }
     if (!res.ok) {
-      setError("Invitation échouée.");
+      const json = (await res.json().catch(() => ({}))) as { message?: string; error?: string };
+      setError(
+        json.error === "invite_email_failed"
+          ? "L'email d'invitation n'a pas pu être envoyé. Vérifie Supabase Auth."
+          : json.message ?? "Invitation échouée."
+      );
       return;
     }
+    setNotice("Invitation envoyée par email.");
+    await load();
+  }
+
+  async function declineProspect(row: AdminWaitlistRow) {
+    const ok = window.confirm(
+      "Refuser cette demande ? Le prospect sera retiré de la liste d'attente."
+    );
+    if (!ok) return;
+
+    setBusyWaitlistId(row.id);
+    setError(null);
+    setNotice(null);
+    const res = await adminFetch(`/api/admin/waitlist/${row.id}/decline`, { method: "POST" });
+    setBusyWaitlistId(null);
+
+    if (!res.ok) {
+      setError("Impossible de décliner cette demande.");
+      return;
+    }
+    setNotice("Demande déclinée.");
     await load();
   }
 
@@ -206,6 +242,7 @@ export function AdminDashboard() {
         { label: "Abonnements expirés", value: stats.expiredSubscriptions, icon: XCircle },
         { label: "Waitlist", value: stats.waitlistCount, icon: ClipboardList },
         { label: "Waitlist en attente", value: stats.waitlistPending, icon: Mail },
+        { label: "Invités", value: stats.waitlistInvited, icon: UserPlus },
       ]
     : [];
 
@@ -217,6 +254,7 @@ export function AdminDashboard() {
       </div>
 
       {error && <p className="rounded-xl bg-red-500/10 px-4 py-2 text-sm text-red-300">{error}</p>}
+      {notice && <p className="rounded-xl bg-green-500/10 px-4 py-2 text-sm text-green-300">{notice}</p>}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {kpis.map((k) => {
@@ -244,11 +282,12 @@ export function AdminDashboard() {
           </p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[1000px] text-left text-sm">
             <thead className="bg-white/[0.03] text-xs uppercase tracking-wide text-white/40">
               <tr>
                 <th className="px-4 py-3">Nom</th>
                 <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Téléphone</th>
                 <th className="px-4 py-3">Boutique</th>
                 <th className="px-4 py-3">Canal</th>
                 <th className="px-4 py-3">Date</th>
@@ -259,7 +298,7 @@ export function AdminDashboard() {
             <tbody>
               {waitlist.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-white/40">
+                  <td colSpan={8} className="px-4 py-8 text-center text-white/40">
                     Aucune demande pour le moment.
                   </td>
                 </tr>
@@ -268,6 +307,27 @@ export function AdminDashboard() {
                   <tr key={w.id} className="border-t border-white/5 hover:bg-white/[0.02]">
                     <td className="px-4 py-3 font-medium">{w.name}</td>
                     <td className="px-4 py-3 text-white/70">{w.email}</td>
+                    <td className="px-4 py-3 text-white/70">
+                      {w.phone ? (
+                        (() => {
+                          const wa = whatsAppUrl(w.phoneNormalized ?? w.phone);
+                          return wa ? (
+                            <a
+                              href={wa}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-green-300 hover:text-green-200"
+                            >
+                              {w.phone}
+                            </a>
+                          ) : (
+                            w.phone
+                          );
+                        })()
+                      ) : (
+                        <span className="text-white/30">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">{w.shopName}</td>
                     <td className="px-4 py-3 text-white/60">
                       {channelLabel(w.channel, w.channelOther)}
@@ -286,27 +346,41 @@ export function AdminDashboard() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {w.status === "pending" ? (
-                        <button
-                          type="button"
-                          disabled={busyWaitlistId === w.id}
-                          onClick={() => inviteProspect(w)}
-                          className="rounded-lg border border-violet-500/40 px-2 py-1 text-xs text-violet-300 hover:bg-violet-500/10 disabled:opacity-40"
-                        >
-                          {busyWaitlistId === w.id ? "Envoi…" : "Inviter ce prospect"}
-                        </button>
-                      ) : w.status === "invited" ? (
-                        <button
-                          type="button"
-                          disabled={busyWaitlistId === w.id}
-                          onClick={() => inviteProspect(w)}
-                          className="rounded-lg border border-white/10 px-2 py-1 text-xs text-white/50 hover:bg-white/5 disabled:opacity-40"
-                        >
-                          Renvoyer l&apos;invitation
-                        </button>
-                      ) : (
-                        <span className="text-xs text-white/30">—</span>
-                      )}
+                      <div className="flex flex-wrap gap-1.5">
+                        {w.status === "pending" && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busyWaitlistId === w.id}
+                              onClick={() => inviteProspect(w)}
+                              className="rounded-lg border border-violet-500/40 px-2 py-1 text-xs text-violet-300 hover:bg-violet-500/10 disabled:opacity-40"
+                            >
+                              {busyWaitlistId === w.id ? "Envoi…" : "Inviter ce prospect"}
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busyWaitlistId === w.id}
+                              onClick={() => declineProspect(w)}
+                              className="rounded-lg border border-red-500/30 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40"
+                            >
+                              Décliner
+                            </button>
+                          </>
+                        )}
+                        {w.status === "invited" && (
+                          <button
+                            type="button"
+                            disabled={busyWaitlistId === w.id}
+                            onClick={() => inviteProspect(w)}
+                            className="rounded-lg border border-white/10 px-2 py-1 text-xs text-white/50 hover:bg-white/5 disabled:opacity-40"
+                          >
+                            Renvoyer l&apos;invitation
+                          </button>
+                        )}
+                        {w.status === "registered" && (
+                          <span className="text-xs text-white/30">—</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

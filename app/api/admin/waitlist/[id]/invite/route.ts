@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
   try {
     await inviteWaitlistProspect(admin, auth.adminEmail, id);
-    return NextResponse.json({ ok: true, status: "invited" });
+    return NextResponse.json({ ok: true, status: "invited", message: "Invitation envoyée par email." });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "invite_failed";
     if (msg === "not_found") {
@@ -25,6 +25,15 @@ export async function POST(request: Request, { params }: RouteParams) {
     }
     if (msg === "already_registered") {
       return NextResponse.json({ error: msg, status: "registered" }, { status: 409 });
+    }
+    if (msg === "declined") {
+      return NextResponse.json({ error: msg }, { status: 409 });
+    }
+    if (msg === "invite_email_failed") {
+      return NextResponse.json(
+        { error: "invite_email_failed", message: "L'email d'invitation n'a pas pu être envoyé. Vérifie la config Supabase Auth." },
+        { status: 502 }
+      );
     }
     return NextResponse.json({ error: msg }, { status: 500 });
   }

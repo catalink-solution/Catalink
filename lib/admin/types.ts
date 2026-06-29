@@ -10,14 +10,17 @@ export type AdminStats = {
   expiredSubscriptions: number;
   waitlistCount: number;
   waitlistPending: number;
+  waitlistInvited: number;
 };
 
-export type WaitlistStatus = "pending" | "invited" | "registered";
+export type WaitlistStatus = "pending" | "invited" | "registered" | "declined";
 
 export type AdminWaitlistRow = {
   id: string;
   name: string;
   email: string;
+  phone: string | null;
+  phoneNormalized: string | null;
   shopName: string;
   channel: string;
   channelOther: string | null;
