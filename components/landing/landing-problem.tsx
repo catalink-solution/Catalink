@@ -12,7 +12,7 @@ const TITLE_HIGHLIGHT =
   "bg-gradient-to-r from-[#8B5CF6] via-[#7C3AED] to-[#2563EB] bg-clip-text text-transparent";
 
 const RIBBON_BASE =
-  "absolute right-2 top-2 inline-flex items-center justify-center rounded-full border px-3.5 py-1.5 text-[11px] font-semibold tracking-tight text-white backdrop-blur-md";
+  "absolute right-2 top-2 inline-flex items-center justify-center rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-tight text-white backdrop-blur-md sm:px-3.5 sm:py-1.5 sm:text-[11px]";
 
 const BADGE_ACCENTS = {
   red: "bg-red-500/25 border-red-200/65 shadow-[0_0_18px_rgba(248,113,113,0.22)]",
@@ -180,7 +180,7 @@ function ProblemBubbleImage({
 }) {
   return (
     <div
-      className={`catalink-problem-bubble mt-auto max-w-full pt-5 pointer-events-none sm:pt-6 ${bubble.wrapperClass}`}
+      className={`catalink-problem-bubble mx-auto mt-auto max-w-[85%] pt-3 pointer-events-none sm:max-w-full sm:pt-6 ${bubble.wrapperClass}`}
       style={
         {
           "--bubble-rotate": bubble.rotate,
@@ -202,7 +202,7 @@ function ProblemBubbleImage({
 
 export function LandingProblem() {
   return (
-    <section id="probleme" className="relative py-20 sm:py-24">
+    <section id="probleme" className="relative py-12 sm:py-14 lg:py-24">
       <div
         className="pointer-events-none absolute inset-x-0 top-0 h-64"
         style={{
@@ -225,27 +225,27 @@ export function LandingProblem() {
           description="Le social commerce fonctionne — jusqu'au moment où le volume de messages dépasse ce que tu peux suivre à la main."
         />
 
-        <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-6 grid gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-4 lg:mt-12 lg:grid-cols-3">
           {PROBLEMS.map((item) => {
             const Icon = item.icon;
             return (
               <div
                 key={item.id}
-                className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-6 shadow-[0_0_40px_rgba(0,0,0,0.12)] transition-all duration-200 hover:-translate-y-0.5 ${item.cardHover}`}
+                className={`group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.03] p-4 shadow-[0_0_40px_rgba(0,0,0,0.12)] transition-all duration-200 hover:-translate-y-0.5 sm:p-6 ${item.cardHover}`}
                 style={{ backgroundImage: item.cardGradient }}
               >
                 <span className={`${RIBBON_BASE} ${item.badgeClass}`}>{item.badge}</span>
 
-                <div className="mb-4">
+                <div className="mb-3 sm:mb-4">
                   <div
-                    className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border transition-shadow duration-200 ${item.iconWrap}`}
+                    className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border transition-shadow duration-200 sm:h-14 sm:w-14 ${item.iconWrap}`}
                   >
-                    <Icon className="h-6 w-6 shrink-0" strokeWidth={2.25} />
+                    <Icon className="h-5 w-5 shrink-0 sm:h-6 sm:w-6" strokeWidth={2.25} />
                   </div>
                 </div>
 
-                <h3 className="mb-2 text-lg font-bold leading-tight text-white">{item.title}</h3>
-                <p className="text-sm leading-relaxed text-zinc-400">{item.description}</p>
+                <h3 className="mb-1.5 text-base font-bold leading-snug text-white sm:mb-2 sm:text-lg">{item.title}</h3>
+                <p className="text-[13px] leading-6 text-slate-300 sm:leading-relaxed lg:text-sm lg:text-zinc-400">{item.description}</p>
                 <ProblemBubbleImage bubble={item.bubble} />
               </div>
             );

@@ -52,7 +52,7 @@ const TRUST_BADGES = [
 
 export function LandingPricing() {
   return (
-    <section id="tarifs" className="border-t border-[var(--surface-border)] py-20 sm:py-24">
+    <section id="tarifs" className="border-t border-[var(--surface-border)] py-12 sm:py-14 lg:py-24">
       <div className="container mx-auto px-4 sm:px-6">
         <SectionHeading
           label="Tarifs"
@@ -61,12 +61,12 @@ export function LandingPricing() {
           align="center"
         />
 
-        <div className="mx-auto mt-12 grid max-w-6xl gap-6 lg:grid-cols-[1fr_300px] lg:items-start xl:grid-cols-[1fr_320px]">
-          <div className="grid gap-5 md:grid-cols-3">
+        <div className="mx-auto mt-8 grid max-w-6xl gap-5 sm:mt-12 lg:grid-cols-[1fr_300px] lg:items-start xl:grid-cols-[1fr_320px]">
+          <div className="grid gap-4 md:grid-cols-3 md:gap-5">
             {PLANS.map((plan) => (
               <div
                 key={plan.name}
-                className="relative flex flex-col rounded-2xl border p-6 text-left sm:p-7"
+                className="relative flex flex-col rounded-2xl border p-5 text-left sm:p-7"
                 style={
                   plan.available
                     ? {
@@ -78,11 +78,11 @@ export function LandingPricing() {
                 }
               >
                 <div className="mb-4 flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold uppercase tracking-widest text-[var(--muted)]">
+                  <span className="text-xs font-bold uppercase tracking-widest text-slate-400 lg:text-[var(--muted)]">
                     {plan.name}
                   </span>
                   <span
-                    className="rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+                    className="rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide lg:text-[10px]"
                     style={
                       plan.available
                         ? { background: "rgba(34,197,94,0.15)", color: "#86efac" }
@@ -94,16 +94,16 @@ export function LandingPricing() {
                 </div>
 
                 <p
-                  className={`mb-5 text-xl font-extrabold tracking-tight sm:text-2xl ${
+                  className={`mb-4 text-xl font-extrabold tracking-tight sm:mb-5 sm:text-2xl ${
                     plan.available ? "text-violet-200" : "text-zinc-400"
                   }`}
                 >
                   {plan.headline}
                 </p>
 
-                <ul className="mb-6 flex-1 space-y-2.5">
+                <ul className="mb-5 flex-1 space-y-2 sm:mb-6 sm:space-y-2.5">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-sm text-zinc-300">
+                    <li key={feature} className="flex items-start gap-2.5 text-[13px] leading-6 text-slate-300 sm:text-sm lg:text-zinc-300">
                       <CheckCircle2
                         size={15}
                         className={`mt-0.5 shrink-0 ${plan.available ? "text-indigo-400" : "text-zinc-600"}`}
@@ -123,7 +123,7 @@ export function LandingPricing() {
           </div>
 
           <div
-            className="rounded-2xl border p-6 sm:p-7 lg:sticky lg:top-24"
+            className="rounded-2xl border p-5 sm:p-7 lg:sticky lg:top-24"
             style={{
               background: "rgba(255,255,255,0.03)",
               borderColor: "rgba(99,102,241,0.25)",
@@ -133,7 +133,7 @@ export function LandingPricing() {
             <p className="text-xs font-bold uppercase tracking-widest text-violet-300">
               Accès bêta sur validation
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-[var(--muted)]">
+            <p className="mt-3 text-[13px] leading-6 text-slate-300 lg:leading-relaxed lg:text-[var(--muted)]">
               La bêta est gratuite pour une durée limitée. L&apos;accès se fait uniquement sur
               invitation.
             </p>
@@ -148,7 +148,7 @@ export function LandingPricing() {
                 return (
                   <div
                     key={badge.label}
-                    className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-xs text-zinc-300"
+                    className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5 text-[13px] leading-6 text-slate-300 lg:text-xs lg:text-zinc-300"
                   >
                     <Icon size={14} className="shrink-0 text-violet-300" />
                     {badge.label}

@@ -6,11 +6,11 @@ export function LandingSolution() {
   return (
     <section
       id="solution"
-      className="border-y border-[var(--surface-border)] py-20 sm:py-24"
+      className="border-y border-[var(--surface-border)] py-12 sm:py-14 lg:py-24"
       style={{ background: "rgba(255,255,255,0.012)" }}
     >
       <div className="container mx-auto px-4 sm:px-6">
-        <div className="grid items-start gap-10 lg:grid-cols-[1fr_280px] lg:gap-14">
+        <div className="grid items-start gap-6 sm:gap-10 lg:grid-cols-[1fr_280px] lg:gap-14">
           <div>
             <SectionHeading
               label="La solution"
@@ -26,17 +26,17 @@ export function LandingSolution() {
           </div>
 
           <div
-            className="rounded-2xl border p-6"
+            className="rounded-2xl border p-5 sm:p-6"
             style={{
               background: "rgba(59,130,246,0.05)",
               borderColor: "rgba(99,102,241,0.25)",
             }}
           >
-            <div className="mb-4 flex items-center gap-3">
+            <div className="mb-3 flex items-center gap-3 sm:mb-4">
               <CheckCircle2 size={28} className="text-green-400" />
-              <p className="font-bold text-green-400">Avec Catalink</p>
+              <p className="text-base font-bold text-green-300 lg:text-green-400">Avec Catalink</p>
             </div>
-            <ul className="space-y-3 text-sm text-[var(--muted)]">
+            <ul className="space-y-3 text-[13px] leading-6 text-slate-300 sm:space-y-3 sm:text-sm lg:text-[var(--muted)]">
               {[
                 "Un lien unique dans ta bio ou tes stories",
                 "Un catalogue clair avec prix et produits",
