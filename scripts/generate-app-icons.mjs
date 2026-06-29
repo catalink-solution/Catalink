@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
@@ -51,9 +51,11 @@ async function writeMaskable512(outputPath) {
 }
 
 async function writeFaviconIco(outputPath) {
+  const png16Path = join(iconsDir, "favicon-16x16.png");
+  const png32Path = join(iconsDir, "favicon-32x32.png");
   const [png16, png32] = await Promise.all([
-    sharp(masterPath).resize(16, 16, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toBuffer(),
-    sharp(masterPath).resize(32, 32, { fit: "fill", kernel: sharp.kernel.lanczos3 }).png().toBuffer(),
+    sharp(png16Path).png().toBuffer(),
+    sharp(png32Path).png().toBuffer(),
   ]);
   const ico = await toIco([png16, png32]);
   await writeFile(outputPath, ico);
@@ -80,6 +82,10 @@ async function main() {
 
   await writeFaviconIco(join(publicDir, "favicon.ico"));
   console.log("✓ public/favicon.ico");
+
+  const appFavicon = join(root, "app/favicon.ico");
+  await copyFile(join(publicDir, "favicon.ico"), appFavicon);
+  console.log("✓ app/favicon.ico");
 }
 
 main().catch((err) => {
