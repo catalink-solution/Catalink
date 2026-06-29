@@ -1,14 +1,12 @@
-import { copyFile, mkdir, writeFile } from "node:fs/promises";
+import { mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import toIco from "to-ico";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
 const masterPath = join(root, "public/icons/catalink-app-icon-master.png");
-const publicDir = join(root, "public");
-const iconsDir = join(publicDir, "icons");
+const iconsDir = join(root, "public/icons");
 
 /** Maskable safe zone — logo at 85% inside a 512² canvas (≈15% margin). */
 const MASKABLE_INNER_RATIO = 0.85;
@@ -50,17 +48,6 @@ async function writeMaskable512(outputPath) {
     .toFile(outputPath);
 }
 
-async function writeFaviconIco(outputPath) {
-  const png16Path = join(iconsDir, "favicon-16x16.png");
-  const png32Path = join(iconsDir, "favicon-32x32.png");
-  const [png16, png32] = await Promise.all([
-    sharp(png16Path).png().toBuffer(),
-    sharp(png32Path).png().toBuffer(),
-  ]);
-  const ico = await toIco([png16, png32]);
-  await writeFile(outputPath, ico);
-}
-
 async function main() {
   await mkdir(iconsDir, { recursive: true });
 
@@ -79,13 +66,6 @@ async function main() {
 
   await writeMaskable512(join(iconsDir, "icon-512-maskable.png"));
   console.log("✓ public/icons/icon-512-maskable.png");
-
-  await writeFaviconIco(join(publicDir, "favicon.ico"));
-  console.log("✓ public/favicon.ico");
-
-  const appFavicon = join(root, "app/favicon.ico");
-  await copyFile(join(publicDir, "favicon.ico"), appFavicon);
-  console.log("✓ app/favicon.ico");
 }
 
 main().catch((err) => {
