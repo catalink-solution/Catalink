@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { CustomSelect } from "@/components/ui/custom-select";
 
@@ -77,13 +78,39 @@ export default function WaitlistPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#030712] p-4 text-white">
       <div className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-white/[0.02] p-8">
-        <Link href="/" className="text-xl font-extrabold tracking-tight">
-          Catalink
+        <Link
+          href="/"
+          className="mb-6 inline-flex text-sm text-white/40 transition-colors hover:text-white/70"
+        >
+          ← Retour à l&apos;accueil
         </Link>
-        <h1 className="mt-6 text-2xl font-bold">Demander un accès</h1>
-        <p className="mb-6 mt-1 text-sm text-white/50">
-          Les inscriptions sont temporairement fermées. Laisse tes coordonnées — on te
-          contacte pour ouvrir ton accès.
+
+        <div className="flex flex-col items-center gap-2.5">
+          <Link href="/" className="flex shrink-0 items-center justify-center">
+            <Image
+              src="/catalink-logo-v3.png"
+              alt="Catalink"
+              width={280}
+              height={96}
+              className="h-12 w-auto max-w-full object-contain sm:h-14"
+              priority
+            />
+          </Link>
+          <span className="rounded-full border border-violet-500/25 bg-violet-500/10 px-2.5 py-0.5 text-xs font-medium tracking-wide text-violet-300">
+            Bêta privée
+          </span>
+        </div>
+
+        <h1 className="mt-6 text-center text-2xl font-bold tracking-tight">
+          Rejoins la bêta privée Catalink
+        </h1>
+        <p className="mt-3 text-center text-sm leading-relaxed text-white/70">
+          Catalink est actuellement en accès privé. Remplis le formulaire, on te recontacte
+          pour ouvrir ton espace vendeur.
+        </p>
+        <p className="mb-6 mt-2 text-center text-sm text-white/45">
+          Laisse tes coordonnées, on te contacte dès qu&apos;un accès est disponible pour ta
+          boutique.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
@@ -144,6 +171,10 @@ export default function WaitlistPage() {
           >
             {loading ? "Envoi…" : "Envoyer ma demande"}
           </button>
+
+          <p className="pt-1 text-center text-xs text-white/35">
+            Aucune carte bancaire requise · Réponse sous 24/48h
+          </p>
         </form>
 
         {message && (
