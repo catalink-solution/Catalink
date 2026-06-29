@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { CustomSelect } from "@/components/ui/custom-select";
+import { WAITLIST_FIELD_LIMITS } from "@/lib/waitlist-limits";
 
 const CHANNELS = [
   { value: "snapchat", label: "Snapchat" },
@@ -13,12 +14,39 @@ const CHANNELS = [
   { value: "other", label: "Autre" },
 ] as const;
 
+function waitlistErrorMessage(error?: string): string {
+  switch (error) {
+    case "duplicate_email":
+      return "Cette adresse email est déjà inscrite sur la liste d'attente.";
+    case "invalid_email":
+      return "Adresse email invalide.";
+    case "channel_other_required":
+      return "Précise ton canal principal.";
+    case "missing_fields":
+      return "Tous les champs obligatoires doivent être remplis.";
+    case "field_too_long":
+      return "Un des champs est trop long.";
+    case "invalid_channel":
+      return "Canal invalide.";
+    case "invalid_body":
+      return "Demande invalide.";
+    case "server_error":
+      return "Une erreur est survenue. Réessaie dans quelques instants.";
+    case "service_not_configured":
+      return "Service temporairement indisponible.";
+    default:
+      return "Envoi impossible. Réessaie dans un instant.";
+  }
+}
+
 export default function WaitlistPage() {
+  const formStartedAt = useRef(Date.now());
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [shopName, setShopName] = useState("");
   const [channel, setChannel] = useState("");
   const [channelOther, setChannelOther] = useState("");
+  const [website, setWebsite] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
@@ -39,23 +67,15 @@ export default function WaitlistPage() {
           shopName: shopName.trim(),
           channel,
           channelOther: channel === "other" ? channelOther.trim() : undefined,
+          website,
+          startedAt: formStartedAt.current,
         }),
       });
 
       const json = (await res.json()) as { error?: string };
 
       if (!res.ok) {
-        const errText =
-          json.error === "duplicate_email"
-            ? "Cette adresse email est déjà inscrite sur la liste d'attente."
-            : json.error === "invalid_email"
-            ? "Adresse email invalide."
-            : json.error === "channel_other_required"
-              ? "Précise ton canal principal."
-              : json.error === "missing_fields"
-                ? "Tous les champs obligatoires doivent être remplis."
-                : "Envoi impossible. Réessaie dans un instant.";
-        setMessage({ type: "err", text: errText });
+        setMessage({ type: "err", text: waitlistErrorMessage(json.error) });
         return;
       }
 
@@ -68,6 +88,7 @@ export default function WaitlistPage() {
       setShopName("");
       setChannel("");
       setChannelOther("");
+      setWebsite("");
     } catch {
       setMessage({ type: "err", text: "Erreur réseau. Réessaie." });
     } finally {
@@ -114,6 +135,19 @@ export default function WaitlistPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
+          <div className="sr-only" aria-hidden="true">
+            <label htmlFor="waitlist-website">Website</label>
+            <input
+              id="waitlist-website"
+              name="website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+            />
+          </div>
+
           <input
             className="input"
             placeholder="Ton nom *"
@@ -121,6 +155,7 @@ export default function WaitlistPage() {
             name="name"
             autoComplete="name"
             required
+            maxLength={WAITLIST_FIELD_LIMITS.name}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -131,6 +166,7 @@ export default function WaitlistPage() {
             name="email"
             autoComplete="email"
             required
+            maxLength={WAITLIST_FIELD_LIMITS.email}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
@@ -140,6 +176,7 @@ export default function WaitlistPage() {
             type="text"
             name="shopName"
             required
+            maxLength={WAITLIST_FIELD_LIMITS.shopName}
             value={shopName}
             onChange={(e) => setShopName(e.target.value)}
           />
@@ -158,6 +195,7 @@ export default function WaitlistPage() {
               type="text"
               name="channelOther"
               required
+              maxLength={WAITLIST_FIELD_LIMITS.channelOther}
               value={channelOther}
               onChange={(e) => setChannelOther(e.target.value)}
             />
