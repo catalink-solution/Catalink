@@ -12,20 +12,39 @@ async function getLogoDataUrl() {
   return logoDataUrl;
 }
 
+/** Square logo PNG — top band = C + link + social rays; bottom = wordmark (clipped). */
+const SYMBOL_BAND_RATIO = 0.46;
+const CANVAS_PADDING = 0.125;
+
+/** Optical tuning calibrated at 512px — scaled for all icon sizes. */
+const REF_SIZE = 512;
+const OPTICAL_TRANSLATE_X = 12;
+const OPTICAL_TRANSLATE_Y = -8;
+const OPTICAL_SCALE = 0.94;
+
 /** App / PWA icon from the official Catalink logo (symbol crop, dark background). */
 export async function catalinkAppIconImage(size: number) {
   const logoSrc = await getLogoDataUrl();
   const radius = Math.round(size * 0.21);
 
+  const targetSymbolHeight = size * (1 - 2 * CANVAS_PADDING);
+  const imgSize = Math.round(targetSymbolHeight / SYMBOL_BAND_RATIO);
+  const top = Math.round(size * (0.5 - (SYMBOL_BAND_RATIO / 2) * (imgSize / size)));
+  const left = Math.round(size * (0.5 - imgSize / size / 2));
+
+  const translateX = Math.round((OPTICAL_TRANSLATE_X / REF_SIZE) * size);
+  const translateY = Math.round((OPTICAL_TRANSLATE_Y / REF_SIZE) * size);
+  const originX = Math.round(imgSize / 2);
+  const originY = Math.round((imgSize * SYMBOL_BAND_RATIO) / 2);
+
   return new ImageResponse(
     (
       <div
         style={{
+          position: "relative",
           width: size,
           height: size,
           display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "center",
           overflow: "hidden",
           background: "#030712",
           borderRadius: radius,
@@ -34,12 +53,14 @@ export async function catalinkAppIconImage(size: number) {
         <img
           src={logoSrc}
           alt=""
-          width={Math.round(size * 0.92)}
-          height={Math.round(size * 1.28)}
+          width={imgSize}
+          height={imgSize}
           style={{
-            objectFit: "cover",
-            objectPosition: "top center",
-            marginTop: Math.round(size * 0.06),
+            position: "absolute",
+            top,
+            left,
+            transform: `translate(${translateX}px, ${translateY}px) scale(${OPTICAL_SCALE})`,
+            transformOrigin: `${originX}px ${originY}px`,
           }}
         />
       </div>
