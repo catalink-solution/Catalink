@@ -100,6 +100,7 @@ export function AdminDashboard() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyWaitlistId, setBusyWaitlistId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [editUser, setEditUser] = useState<AdminUserRow | null>(null);
   const [editPlan, setEditPlan] = useState("free");
   const [editStatus, setEditStatus] = useState<SubscriptionStatus>("active");
@@ -131,8 +132,14 @@ export function AdminDashboard() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null));
+  }, []);
+
   async function userAction(user: AdminUserRow, action: string, extra?: Record<string, unknown>) {
     setBusyId(user.userId);
+    setError(null);
+    setNotice(null);
     const res = await adminFetch(`/api/admin/users/${user.userId}`, {
       method: "PATCH",
       body: JSON.stringify({ action, shopId: user.shopId, ...extra }),
@@ -147,6 +154,34 @@ export function AdminDashboard() {
       }
       return;
     }
+    await load();
+  }
+
+  async function deleteUserAccount(user: AdminUserRow) {
+    const ok = window.confirm(
+      "Supprimer définitivement cet utilisateur ? Cette action est irréversible."
+    );
+    if (!ok) return;
+
+    setBusyId(user.userId);
+    setError(null);
+    setNotice(null);
+    const res = await adminFetch(`/api/admin/users/${user.userId}`, { method: "DELETE" });
+    setBusyId(null);
+
+    if (!res.ok) {
+      const json = (await res.json().catch(() => ({}))) as { error?: string };
+      if (json.error === "cannot_modify_platform_admin" || json.error === "cannot_delete_self") {
+        setError("Cet utilisateur ne peut pas être supprimé.");
+      } else if (json.error === "user_has_orders") {
+        setError("Impossible de supprimer un utilisateur avec des commandes. Suspends-le plutôt.");
+      } else {
+        setError("Suppression impossible. Réessaie.");
+      }
+      return;
+    }
+
+    setNotice("Utilisateur supprimé.");
     await load();
   }
 
@@ -377,9 +412,6 @@ export function AdminDashboard() {
                             Renvoyer l&apos;invitation
                           </button>
                         )}
-                        {w.status === "registered" && (
-                          <span className="text-xs text-white/30">—</span>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -485,6 +517,16 @@ export function AdminDashboard() {
                               className="rounded-lg border border-white/10 px-2 py-1 text-xs hover:bg-white/5"
                             >
                               <MoreHorizontal size={14} className="inline" /> Plan
+                            </button>
+                          )}
+                          {u.userId !== currentUserId && (
+                            <button
+                              type="button"
+                              disabled={busyId === u.userId}
+                              onClick={() => deleteUserAccount(u)}
+                              className="rounded-lg border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                            >
+                              Supprimer
                             </button>
                           )}
                         </>

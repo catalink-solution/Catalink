@@ -3,6 +3,9 @@ import { isAdminEmail } from "./auth";
 /** Code d'erreur API lorsqu'une action vise le compte admin plateforme. */
 export const CANNOT_MODIFY_PLATFORM_ADMIN = "cannot_modify_platform_admin";
 
+export const CANNOT_DELETE_SELF = "cannot_delete_self";
+export const USER_HAS_ORDERS = "user_has_orders";
+
 export class PlatformAdminProtectedError extends Error {
   constructor(message = CANNOT_MODIFY_PLATFORM_ADMIN) {
     super(message);

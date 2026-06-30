@@ -1,6 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logAdminAction } from "./queries";
-import { assertNotPlatformAdmin } from "./protection";
+import {
+  assertNotPlatformAdmin,
+  CANNOT_DELETE_SELF,
+  USER_HAS_ORDERS,
+} from "./protection";
 import {
   authUserByEmail,
   getInviteRedirectUrl,
@@ -207,6 +211,145 @@ export async function declineWaitlistProspect(
       previous_status: previousStatus,
       declined_by: adminEmail,
       declined_at: now,
+    }
+  );
+}
+
+export class UserDeleteBlockedError extends Error {
+  constructor(public code: typeof CANNOT_DELETE_SELF | typeof USER_HAS_ORDERS) {
+    super(code);
+    this.name = "UserDeleteBlockedError";
+  }
+}
+
+async function deleteShopData(admin: SupabaseClient, shopId: string, userId: string) {
+  const { data: products } = await admin.from("products").select("id").eq("shop_id", shopId);
+  const productIds = (products ?? []).map((p) => p.id as string);
+
+  if (productIds.length > 0) {
+    const { data: skus } = await admin.from("product_skus").select("id").in("product_id", productIds);
+    const skuIds = (skus ?? []).map((s) => s.id as string);
+
+    if (skuIds.length > 0) {
+      await admin.from("product_sku_values").delete().in("sku_id", skuIds);
+      await admin.from("product_sku_images").delete().in("sku_id", skuIds);
+    }
+    await admin.from("product_skus").delete().in("product_id", productIds);
+
+    const { data: attributes } = await admin
+      .from("product_attributes")
+      .select("id")
+      .in("product_id", productIds);
+    const attributeIds = (attributes ?? []).map((a) => a.id as string);
+    if (attributeIds.length > 0) {
+      await admin.from("product_attribute_values").delete().in("attribute_id", attributeIds);
+    }
+    await admin.from("product_attributes").delete().in("product_id", productIds);
+
+    await admin.from("product_images").delete().in("product_id", productIds);
+    await admin.from("product_variants").delete().in("product_id", productIds);
+    await admin.from("reviews").delete().in("product_id", productIds);
+    await admin.from("products").delete().eq("shop_id", shopId);
+  }
+
+  await admin.from("reviews").delete().eq("shop_id", shopId);
+  await admin.from("story_exports").delete().eq("shop_id", shopId);
+  await admin.from("story_templates").delete().eq("shop_id", shopId);
+  await admin.from("quick_replies").delete().eq("shop_id", shopId);
+  await admin.from("campaign_visits").delete().eq("shop_id", shopId);
+  await admin.from("campaign_links").delete().eq("shop_id", shopId);
+  await admin.from("abandoned_carts").delete().eq("shop_id", shopId);
+  await admin.from("customer_loyalty").delete().eq("shop_id", shopId);
+  await admin.from("customers").delete().eq("shop_id", shopId);
+  await admin.from("product_categories").delete().eq("shop_id", shopId);
+
+  const { data: jobs } = await admin.from("import_jobs").select("id").eq("shop_id", shopId);
+  const jobIds = (jobs ?? []).map((j) => j.id as string);
+  if (jobIds.length > 0) {
+    await admin.from("import_files").delete().in("job_id", jobIds);
+    await admin.from("import_detected_variants").delete().in("job_id", jobIds);
+    await admin.from("import_detected_products").delete().in("job_id", jobIds);
+    await admin.from("import_processing_logs").delete().in("job_id", jobIds);
+    await admin.from("import_jobs").delete().in("id", jobIds);
+  }
+
+  await admin.from("notifications").delete().or(`shop_id.eq.${shopId},user_id.eq.${userId}`);
+  await admin.from("shops").delete().eq("id", shopId);
+}
+
+export async function deleteUser(
+  admin: SupabaseClient,
+  adminEmail: string,
+  actingAdminUserId: string,
+  userId: string
+) {
+  if (actingAdminUserId === userId) {
+    throw new UserDeleteBlockedError(CANNOT_DELETE_SELF);
+  }
+
+  const { data: targetData, error: userErr } = await admin.auth.admin.getUserById(userId);
+  if (userErr) throw userErr;
+  if (!targetData.user) throw new Error("not_found");
+
+  assertNotPlatformAdmin(targetData.user.email);
+  const deletedEmail = (targetData.user.email ?? "").trim().toLowerCase();
+
+  const { data: shops } = await admin.from("shops").select("id").eq("user_id", userId);
+  const shopIds = (shops ?? []).map((s) => s.id as string);
+
+  let orderCount = 0;
+  let revenue = 0;
+  let productCount = 0;
+
+  if (shopIds.length > 0) {
+    const [{ data: orders }, { data: products }] = await Promise.all([
+      admin.from("orders").select("total, status").in("shop_id", shopIds),
+      admin.from("products").select("id").in("shop_id", shopIds),
+    ]);
+
+    orderCount = orders?.length ?? 0;
+    revenue = (orders ?? [])
+      .filter((o) => o.status !== "cancelled")
+      .reduce((sum, o) => sum + Number(o.total ?? 0), 0);
+    productCount = products?.length ?? 0;
+
+    if (orderCount > 0 || revenue > 0) {
+      throw new UserDeleteBlockedError(USER_HAS_ORDERS);
+    }
+
+    for (const shopId of shopIds) {
+      await deleteShopData(admin, shopId, userId);
+    }
+  }
+
+  await admin.from("notifications").delete().eq("user_id", userId);
+
+  const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
+  if (deleteErr) throw deleteErr;
+
+  if (deletedEmail) {
+    await admin
+      .from("waitlist_requests")
+      .update({
+        status: "declined",
+        declined_at: new Date().toISOString(),
+        declined_by: adminEmail,
+      })
+      .eq("email", deletedEmail);
+  }
+
+  await logAdminAction(
+    admin,
+    adminEmail,
+    "delete_user",
+    { userId, shopId: shopIds[0] },
+    {
+      deleted_user_id: userId,
+      deleted_email: deletedEmail,
+      deleted_shop_count: shopIds.length,
+      deleted_product_count: productCount,
+      deleted_order_count: orderCount,
+      deleted_by: adminEmail,
     }
   );
 }

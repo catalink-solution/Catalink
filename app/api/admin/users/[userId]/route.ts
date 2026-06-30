@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { requireAdmin } from "@/lib/admin/auth";
-import { activateUser, suspendUser, updateSubscription } from "@/lib/admin/actions";
+import { activateUser, deleteUser, suspendUser, updateSubscription, UserDeleteBlockedError } from "@/lib/admin/actions";
 import {
   CANNOT_MODIFY_PLATFORM_ADMIN,
   PlatformAdminProtectedError,
+  USER_HAS_ORDERS,
   isProtectedAdminAction,
 } from "@/lib/admin/protection";
 import { isAdminEmail } from "@/lib/admin/auth";
@@ -69,5 +70,39 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     }
     const msg = e instanceof Error ? e.message : "action_failed";
     return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request, { params }: RouteParams) {
+  const auth = await requireAdmin(request);
+  if (auth instanceof NextResponse) return auth;
+
+  const { userId } = await params;
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.json({ error: "service_not_configured" }, { status: 500 });
+  }
+
+  const { data: targetUser, error: userErr } = await admin.auth.admin.getUserById(userId);
+  if (userErr) {
+    return NextResponse.json({ error: "delete_failed" }, { status: 500 });
+  }
+  if (isAdminEmail(targetUser.user?.email)) {
+    return NextResponse.json({ error: CANNOT_MODIFY_PLATFORM_ADMIN }, { status: 403 });
+  }
+
+  try {
+    await deleteUser(admin, auth.adminEmail, auth.user.id, userId);
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    if (e instanceof PlatformAdminProtectedError) {
+      return NextResponse.json({ error: CANNOT_MODIFY_PLATFORM_ADMIN }, { status: 403 });
+    }
+    if (e instanceof UserDeleteBlockedError) {
+      const status = e.code === USER_HAS_ORDERS ? 409 : 403;
+      return NextResponse.json({ error: e.code }, { status });
+    }
+    console.error("[admin] deleteUser failed:", e);
+    return NextResponse.json({ error: "delete_failed" }, { status: 500 });
   }
 }
