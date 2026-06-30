@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { findAuthUserByEmail } from "@/lib/admin/waitlist-auth";
 import {
   WAITLIST_FIELD_LIMITS,
   WAITLIST_MIN_SUBMIT_MS,
   type WaitlistFieldKey,
 } from "@/lib/waitlist-limits";
 import { isValidWaitlistPhone, normalizeWaitlistPhone } from "@/lib/waitlist-phone";
+import {
+  canReactivateWaitlistStatus,
+  clearDeclinedPhoneHolder,
+  fetchWaitlistByEmail,
+  fetchWaitlistByPhone,
+  isActiveWaitlistStatus,
+  reactivateWaitlistRow,
+} from "@/lib/waitlist-submit";
 
 // TODO: Ajouter un rate limit IP/email avec Upstash ou Vercel KV avant ouverture publique large.
 
@@ -105,27 +114,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "channel_other_required" }, { status: 400 });
   }
 
-  const { data: existingEmail } = await admin
-    .from("waitlist_requests")
-    .select("id")
-    .ilike("email", email)
-    .maybeSingle();
-
-  if (existingEmail) {
-    return NextResponse.json({ error: "duplicate_email" }, { status: 409 });
-  }
-
-  const { data: existingPhone } = await admin
-    .from("waitlist_requests")
-    .select("id")
-    .eq("phone_normalized", phoneNormalized)
-    .maybeSingle();
-
-  if (existingPhone) {
-    return NextResponse.json({ error: "duplicate_phone" }, { status: 409 });
-  }
-
-  const { error } = await admin.from("waitlist_requests").insert({
+  const rowPayload = {
     name,
     email,
     phone: phoneRaw,
@@ -133,19 +122,65 @@ export async function POST(request: Request) {
     shop_name: shopName,
     channel,
     channel_other: channel === "other" ? channelOther : null,
-  });
+  };
 
-  if (error) {
-    if (error.code === "23505") {
-      const detail = `${error.message} ${error.details ?? ""}`.toLowerCase();
-      if (detail.includes("phone")) {
+  try {
+    const authUser = await findAuthUserByEmail(admin, email);
+    if (authUser) {
+      return NextResponse.json({ error: "already_registered" }, { status: 409 });
+    }
+
+    const [emailRow, phoneRow] = await Promise.all([
+      fetchWaitlistByEmail(admin, email),
+      fetchWaitlistByPhone(admin, phoneNormalized),
+    ]);
+
+    if (emailRow) {
+      if (emailRow.status === "pending" || emailRow.status === "invited") {
+        return NextResponse.json({ error: "duplicate_email" }, { status: 409 });
+      }
+
+      if (canReactivateWaitlistStatus(emailRow.status)) {
+        if (phoneRow && phoneRow.id !== emailRow.id) {
+          if (isActiveWaitlistStatus(phoneRow.status)) {
+            return NextResponse.json({ error: "duplicate_phone" }, { status: 409 });
+          }
+          await clearDeclinedPhoneHolder(admin, phoneRow.id);
+        }
+
+        await reactivateWaitlistRow(admin, emailRow.id, rowPayload);
+        return NextResponse.json({ ok: true });
+      }
+    }
+
+    if (phoneRow) {
+      if (isActiveWaitlistStatus(phoneRow.status)) {
         return NextResponse.json({ error: "duplicate_phone" }, { status: 409 });
       }
-      return NextResponse.json({ error: "duplicate_email" }, { status: 409 });
+
+      if (canReactivateWaitlistStatus(phoneRow.status)) {
+        await reactivateWaitlistRow(admin, phoneRow.id, rowPayload);
+        return NextResponse.json({ ok: true });
+      }
     }
-    console.error("[waitlist] insert failed:", error);
+
+    const { error } = await admin.from("waitlist_requests").insert(rowPayload);
+
+    if (error) {
+      if (error.code === "23505") {
+        const detail = `${error.message} ${error.details ?? ""}`.toLowerCase();
+        if (detail.includes("phone")) {
+          return NextResponse.json({ error: "duplicate_phone" }, { status: 409 });
+        }
+        return NextResponse.json({ error: "duplicate_email" }, { status: 409 });
+      }
+      console.error("[waitlist] insert failed:", error);
+      return NextResponse.json({ error: "server_error" }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("[waitlist] submit failed:", err);
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
-
-  return NextResponse.json({ ok: true });
 }

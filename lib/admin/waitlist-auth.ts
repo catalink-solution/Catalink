@@ -42,3 +42,28 @@ export function getInviteRedirectUrl(): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
   return `${appUrl}/auth/callback`;
 }
+
+export async function findAuthUserByEmail(
+  admin: SupabaseClient,
+  email: string
+): Promise<AuthUserLite | null> {
+  const target = email.trim().toLowerCase();
+  let page = 1;
+  for (;;) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 100 });
+    if (error) throw error;
+    for (const u of data.users) {
+      if (u.email?.trim().toLowerCase() === target) {
+        return {
+          id: u.id,
+          email: target,
+          last_sign_in_at: u.last_sign_in_at ?? null,
+          email_confirmed_at: u.email_confirmed_at ?? null,
+        };
+      }
+    }
+    if (data.users.length < 100) break;
+    page++;
+  }
+  return null;
+}

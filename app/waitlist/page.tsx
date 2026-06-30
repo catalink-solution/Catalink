@@ -19,7 +19,9 @@ function waitlistErrorMessage(error?: string): string {
     case "duplicate_email":
       return "Cette adresse email est déjà inscrite sur la liste d'attente.";
     case "duplicate_phone":
-      return "Ce numéro est déjà inscrit.";
+      return "Ce numéro est déjà inscrit sur la liste d'attente.";
+    case "already_registered":
+      return "Un compte existe déjà avec cette adresse. Connecte-toi ou contacte-nous.";
     case "invalid_phone":
       return "Numéro de téléphone invalide.";
     case "invalid_email":
