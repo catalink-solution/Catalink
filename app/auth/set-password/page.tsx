@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
+const MIN_PASSWORD_LENGTH = 8;
+
 export default function SetPasswordPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
@@ -24,7 +26,7 @@ export default function SetPasswordPage() {
       .auth.getSession()
       .then(({ data: { session } }) => {
         if (!session) {
-          router.replace("/login?error=invite_session");
+          router.replace("/login?error=session_expired");
           return;
         }
         setChecking(false);
@@ -35,8 +37,8 @@ export default function SetPasswordPage() {
     e.preventDefault();
     if (loading) return;
 
-    if (password.length < 6) {
-      setMessage("Le mot de passe doit faire au moins 6 caractères.");
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setMessage("Le mot de passe doit contenir au moins 8 caractères.");
       return;
     }
     if (password !== confirm) {
@@ -76,20 +78,20 @@ export default function SetPasswordPage() {
         <Link href="/" className="text-xl font-extrabold tracking-tight">
           Catalink
         </Link>
-        <h1 className="mt-6 text-2xl font-bold">Active ton accès</h1>
+        <h1 className="mt-6 text-2xl font-bold">Crée ton mot de passe</h1>
         <p className="mb-6 mt-1 text-sm text-white/50">
-          Définis ton mot de passe pour accéder à ton espace vendeur Catalink.
+          Ton accès Catalink est prêt. Définis ton mot de passe pour finaliser ton compte.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
           <input
             className="input"
-            placeholder="Nouveau mot de passe *"
+            placeholder="Mot de passe *"
             type="password"
             name="password"
             autoComplete="new-password"
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
@@ -100,7 +102,7 @@ export default function SetPasswordPage() {
             name="confirmPassword"
             autoComplete="new-password"
             required
-            minLength={6}
+            minLength={MIN_PASSWORD_LENGTH}
             value={confirm}
             onChange={(e) => setConfirm(e.target.value)}
           />
@@ -110,7 +112,7 @@ export default function SetPasswordPage() {
             className="btn-touch w-full rounded-xl px-5 py-3 font-bold text-white transition-all disabled:opacity-50"
             style={{ background: "linear-gradient(to right,#3b82f6,#7c3aed)" }}
           >
-            {loading ? "Enregistrement…" : "Créer mon mot de passe"}
+            {loading ? "Finalisation…" : "Finaliser mon accès"}
           </button>
         </form>
 

@@ -1,4 +1,4 @@
-import type { SupabaseClient, User } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AuthUserLite = {
   id: string;
@@ -40,5 +40,5 @@ export function isWaitlistProspectRegistered(user: AuthUserLite | undefined): bo
 
 export function getInviteRedirectUrl(): string {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ?? "http://localhost:3000";
-  return `${appUrl}/auth/callback?next=/auth/set-password`;
+  return `${appUrl}/auth/callback`;
 }

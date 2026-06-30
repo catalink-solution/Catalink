@@ -1,23 +1,40 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 
-export default function LoginPage() {
+function loginErrorMessage(code: string | null): string | null {
+  switch (code) {
+    case "auth_callback":
+      return "Le lien d'activation est invalide ou expiré. Utilise le lien reçu par email ou demande une nouvelle invitation.";
+    case "session_expired":
+      return "Ta session a expiré. Clique à nouveau sur le lien « Activer mon accès » dans l'email reçu.";
+    case "invite_session":
+      return "Active d'abord ton accès via le lien reçu par email avant de te connecter.";
+    default:
+      return null;
+  }
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
+    const urlError = loginErrorMessage(searchParams.get("error"));
+    if (urlError) setMessage(urlError);
+
     const supabase = getSupabaseBrowser();
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) router.replace("/dashboard");
     });
-  }, [router]);
+  }, [router, searchParams]);
 
   async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -146,5 +163,19 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-[#030712] p-4 text-white/60">
+          Chargement…
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
