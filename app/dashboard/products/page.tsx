@@ -22,6 +22,8 @@ import {
   type VariantDraft,
 } from "@/lib/variant-store";
 import { ContextualTip } from "@/components/dashboard/contextual-tip";
+import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
+import { reportAppError } from "@/lib/report-app-error";
 
 type Product = {
   id: string;
@@ -263,7 +265,12 @@ export default function ProductsPage() {
     const filePath = (shopId || "temp") + "/" + fileName;
     const { error } = await supabase.storage.from("product-images").upload(filePath, file);
     if (error) {
-      setMessage("Erreur upload image : " + error.message);
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.PRODUCT_UPLOAD_IMAGE,
+        message: error.message,
+        metadata: { shopId, code: error.name },
+      });
+      setMessage("Erreur lors de l'envoi de l'image.");
       return null;
     }
     const { data } = supabase.storage.from("product-images").getPublicUrl(filePath);
@@ -350,7 +357,12 @@ export default function ProductsPage() {
       .single();
 
     if (error || !inserted) {
-      setMessage(error?.message ?? "Erreur lors de l'ajout.");
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.PRODUCT_CREATE,
+        message: error?.message ?? "insert_failed",
+        metadata: { shopId, code: error?.code },
+      });
+      setMessage("Erreur lors de l'ajout du produit.");
       return;
     }
 
@@ -389,10 +401,15 @@ export default function ProductsPage() {
       .eq("id", product.id);
 
     if (error) {
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.PRODUCT_UPDATE,
+        message: error.message,
+        metadata: { productId: product.id, code: error.code },
+      });
       setProducts((prev) =>
         prev.map((p) => (p.id === product.id ? { ...p, is_active: product.is_active } : p))
       );
-      setMessage("Erreur mise à jour : " + error.message);
+      setMessage("Erreur lors de la mise à jour.");
     }
   }
 
@@ -499,8 +516,13 @@ export default function ProductsPage() {
       .eq("id", editingProduct.id);
 
     if (error) {
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.PRODUCT_UPDATE,
+        message: error.message,
+        metadata: { productId: editingProduct.id, code: error.code },
+      });
       setEditSaving(false);
-      setEditError("Erreur : " + error.message);
+      setEditError("Erreur lors de la mise à jour.");
       return;
     }
 

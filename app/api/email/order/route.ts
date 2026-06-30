@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { sendOrderNotificationEmail } from "@/lib/email";
+import { APP_ERROR_ACTIONS, logAppError } from "@/lib/app-error-log";
 
 export async function POST(request: Request) {
   try {
@@ -63,11 +64,22 @@ export async function POST(request: Request) {
     });
 
     if (!result.ok) {
+      await logAppError({
+        action: APP_ERROR_ACTIONS.API_EMAIL_ORDER,
+        route: "/api/email/order",
+        message: result.error ?? "email_send_failed",
+        metadata: { orderId },
+      });
       return NextResponse.json({ skipped: true, reason: result.error });
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    await logAppError({
+      action: APP_ERROR_ACTIONS.API_EMAIL_ORDER,
+      route: "/api/email/order",
+      message: err instanceof Error ? err.message : "internal_error",
+    });
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }

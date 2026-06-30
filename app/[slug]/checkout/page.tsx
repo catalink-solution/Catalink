@@ -11,6 +11,8 @@ import {
   syncAbandonedCartContact,
 } from "@/components/storefront/storefront-tracker";
 import { formatPrice } from "@/lib/format";
+import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
+import { reportAppError } from "@/lib/report-app-error";
 
 type ShopInfo = { id: string; name: string; whatsapp: string | null };
 
@@ -113,6 +115,11 @@ export default function CheckoutPage({
       });
 
       if (rpcError) {
+        void reportAppError({
+          action: APP_ERROR_ACTIONS.ORDER_CREATE,
+          message: rpcError.message,
+          metadata: { shopSlug: slug, shopId: shop.id, code: rpcError.code },
+        });
         const msg = rpcError.message.includes("shop_suspended")
           ? "Cette boutique est indisponible."
           : rpcError.message.includes("out_of_stock")
@@ -126,7 +133,12 @@ export default function CheckoutPage({
       }
 
       orderId = data as string;
-    } catch {
+    } catch (err) {
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.ORDER_CREATE,
+        message: err instanceof Error ? err.message : "network_error",
+        metadata: { shopSlug: slug, shopId: shop.id },
+      });
       setError("Erreur réseau lors de la création de commande. Vérifie ta connexion.");
       setSubmitting(false);
       return;

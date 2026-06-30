@@ -8,6 +8,7 @@ import {
 import { formatOrderNumber } from "@/lib/customer-order-status";
 import { statusMeta } from "@/lib/order-status";
 import type { CustomerNotificationType } from "@/lib/customer-order-status";
+import { APP_ERROR_ACTIONS, logAppError } from "@/lib/app-error-log";
 
 function createAuthClient(token: string) {
   return createClient(
@@ -127,7 +128,12 @@ export async function POST(request: Request) {
       hasCustomerEmail: Boolean(customerEmail),
       orderPageUrl,
     });
-  } catch {
+  } catch (err) {
+    await logAppError({
+      action: APP_ERROR_ACTIONS.API_EMAIL_ORDER_STATUS,
+      route: "/api/email/order-status",
+      message: err instanceof Error ? err.message : "internal_error",
+    });
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }

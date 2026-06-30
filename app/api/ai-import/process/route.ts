@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { stepJob } from "@/lib/ai-import/processor";
+import { APP_ERROR_ACTIONS, logAppError } from "@/lib/app-error-log";
 
 export const maxDuration = 60;
 
@@ -74,6 +75,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ...step });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "internal_error";
+    await logAppError({
+      action: APP_ERROR_ACTIONS.API_AI_IMPORT,
+      route: "/api/ai-import/process",
+      message: msg,
+      metadata: { jobId },
+    });
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

@@ -15,6 +15,7 @@ import {
   isActiveWaitlistStatus,
   reactivateWaitlistRow,
 } from "@/lib/waitlist-submit";
+import { APP_ERROR_ACTIONS, logAppError } from "@/lib/app-error-log";
 
 // TODO: Ajouter un rate limit IP/email avec Upstash ou Vercel KV avant ouverture publique large.
 
@@ -175,12 +176,24 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: "duplicate_email" }, { status: 409 });
       }
       console.error("[waitlist] insert failed:", error);
+      await logAppError({
+        action: APP_ERROR_ACTIONS.WAITLIST_SUBMIT,
+        route: "/api/waitlist",
+        message: error.message,
+        metadata: { code: error.code, email },
+      });
       return NextResponse.json({ error: "server_error" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[waitlist] submit failed:", err);
+    await logAppError({
+      action: APP_ERROR_ACTIONS.WAITLIST_SUBMIT,
+      route: "/api/waitlist",
+      message: err instanceof Error ? err.message : "submit_failed",
+      metadata: { email },
+    });
     return NextResponse.json({ error: "server_error" }, { status: 500 });
   }
 }

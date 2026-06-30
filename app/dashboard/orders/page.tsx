@@ -23,6 +23,8 @@ import {
   statusMeta,
 } from "@/lib/order-status";
 import { awardLoyaltyOnDelivery } from "@/lib/loyalty";
+import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
+import { reportAppError } from "@/lib/report-app-error";
 import { CustomSelect } from "@/components/ui/custom-select";
 import { syncTrackingStatus, isDeliveredStatus } from "@/lib/tracking-sync";
 import { getCustomerNotificationType } from "@/lib/customer-order-status";
@@ -92,7 +94,14 @@ export default function OrdersPage() {
       .eq("shop_id", shop.id)
       .order("created_at", { ascending: false });
 
-    if (error) setMessage(error.message);
+    if (error) {
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.DASHBOARD_ORDERS,
+        message: error.message,
+        metadata: { shopId: shop.id, code: error.code, step: "load_orders" },
+      });
+      setMessage("Impossible de charger les commandes.");
+    }
 
     const list = (data ?? []) as OrderWithItems[];
     setOrders(list);
@@ -198,7 +207,12 @@ export default function OrdersPage() {
 
     const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
     if (error) {
-      setMessage("Erreur mise à jour : " + error.message);
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.DASHBOARD_ORDERS,
+        message: error.message,
+        metadata: { orderId, code: error.code, step: "update_status" },
+      });
+      setMessage("Erreur lors de la mise à jour.");
       return;
     }
 
@@ -232,7 +246,12 @@ export default function OrdersPage() {
 
     const { error } = await supabase.from("orders").update(patch).eq("id", orderId);
     if (error) {
-      setMessage("Erreur suivi : " + error.message);
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.DASHBOARD_ORDERS,
+        message: error.message,
+        metadata: { orderId, code: error.code, step: "save_tracking" },
+      });
+      setMessage("Erreur lors de l'enregistrement du suivi.");
       return;
     }
 
@@ -287,7 +306,12 @@ export default function OrdersPage() {
 
     const { error: updateError } = await supabase.from("orders").update(patch).eq("id", orderId);
     if (updateError) {
-      setMessage("Erreur mise à jour : " + updateError.message);
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.DASHBOARD_ORDERS,
+        message: updateError.message,
+        metadata: { orderId, code: updateError.code, step: "refresh_tracking" },
+      });
+      setMessage("Erreur lors de la mise à jour.");
       return;
     }
 

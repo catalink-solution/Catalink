@@ -22,6 +22,7 @@ import { planLabel, SUBSCRIPTION_STATUS_LABELS, type SubscriptionStatus } from "
 import type { AdminStats, AdminUserRow, AdminWaitlistRow, WaitlistStatus } from "@/lib/admin/types";
 import { whatsAppUrl } from "@/lib/waitlist-phone";
 import { CustomSelect } from "@/components/ui/custom-select";
+import { AdminErrorLogs } from "@/components/admin/admin-error-logs";
 
 async function getToken() {
   const { data } = await supabase.auth.getSession();
@@ -602,6 +603,8 @@ export function AdminDashboard() {
           </div>
         </div>
       )}
+
+      <AdminErrorLogs />
     </div>
   );
 }

@@ -4,6 +4,8 @@ import { useEffect, useState, type FormEvent, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
+import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
+import { reportAppError } from "@/lib/report-app-error";
 
 function loginErrorMessage(code: string | null): string | null {
   switch (code) {
@@ -64,10 +66,15 @@ function LoginForm() {
       });
 
       if (error) {
+        void reportAppError({
+          action: APP_ERROR_ACTIONS.AUTH_LOGIN,
+          message: error.message,
+          metadata: { code: error.code, email: trimmedEmail },
+        });
         setMessage(
           error.message === "Invalid login credentials"
             ? "Email ou mot de passe incorrect."
-            : error.message
+            : "Connexion impossible. Réessaie."
         );
         setLoading(false);
         return;
@@ -81,7 +88,12 @@ function LoginForm() {
 
       window.location.href = "/dashboard";
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Erreur réseau. Réessaie.");
+      void reportAppError({
+        action: APP_ERROR_ACTIONS.AUTH_LOGIN,
+        message: err instanceof Error ? err.message : "network_error",
+        metadata: { email: trimmedEmail },
+      });
+      setMessage("Erreur réseau. Réessaie.");
       setLoading(false);
     }
   }
