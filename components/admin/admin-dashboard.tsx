@@ -232,11 +232,12 @@ export function AdminDashboard() {
     await load();
   }
 
-  async function declineProspect(row: AdminWaitlistRow) {
-    const ok = window.confirm(
-      "Refuser cette demande ? Le prospect sera retiré de la liste d'attente."
-    );
-    if (!ok) return;
+  async function removeFromWaitlist(row: AdminWaitlistRow) {
+    const confirmMessage =
+      row.status === "invited"
+        ? "Retirer ce prospect invité de la liste d'attente ? Son compte utilisateur ne sera pas supprimé automatiquement."
+        : "Refuser cette demande ? Le prospect sera retiré de la liste d'attente.";
+    if (!window.confirm(confirmMessage)) return;
 
     setBusyWaitlistId(row.id);
     setError(null);
@@ -245,10 +246,10 @@ export function AdminDashboard() {
     setBusyWaitlistId(null);
 
     if (!res.ok) {
-      setError("Impossible de décliner cette demande.");
+      setError("Impossible de retirer ce prospect. Réessaie.");
       return;
     }
-    setNotice("Demande déclinée.");
+    setNotice("Prospect retiré de la liste d'attente.");
     await load();
   }
 
@@ -395,7 +396,7 @@ export function AdminDashboard() {
                             <button
                               type="button"
                               disabled={busyWaitlistId === w.id}
-                              onClick={() => declineProspect(w)}
+                              onClick={() => removeFromWaitlist(w)}
                               className="rounded-lg border border-red-500/30 px-2 py-1 text-xs text-red-300 hover:bg-red-500/10 disabled:opacity-40"
                             >
                               Décliner
@@ -403,14 +404,24 @@ export function AdminDashboard() {
                           </>
                         )}
                         {w.status === "invited" && (
-                          <button
-                            type="button"
-                            disabled={busyWaitlistId === w.id}
-                            onClick={() => inviteProspect(w)}
-                            className="rounded-lg border border-white/10 px-2 py-1 text-xs text-white/50 hover:bg-white/5 disabled:opacity-40"
-                          >
-                            Renvoyer l&apos;invitation
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              disabled={busyWaitlistId === w.id}
+                              onClick={() => inviteProspect(w)}
+                              className="rounded-lg border border-white/10 px-2 py-1 text-xs text-white/50 hover:bg-white/5 disabled:opacity-40"
+                            >
+                              Renvoyer l&apos;invitation
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busyWaitlistId === w.id}
+                              onClick={() => removeFromWaitlist(w)}
+                              className="rounded-lg border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10 disabled:opacity-40"
+                            >
+                              Supprimer
+                            </button>
+                          </>
                         )}
                       </div>
                     </td>

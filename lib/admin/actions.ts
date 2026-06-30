@@ -188,6 +188,13 @@ export async function declineWaitlistProspect(
   const previousStatus = typed.status;
   const now = new Date().toISOString();
 
+  const email = typed.email.trim().toLowerCase();
+  const authUsers = await listAllAuthUsersLite(admin);
+  const authUser = authUserByEmail(authUsers).get(email);
+  const wasInvited =
+    previousStatus === "invited" ||
+    Boolean(authUser && !isWaitlistProspectRegistered(authUser));
+
   const { error: updateErr } = await admin
     .from("waitlist_requests")
     .update({
@@ -201,7 +208,7 @@ export async function declineWaitlistProspect(
   await logAdminAction(
     admin,
     adminEmail,
-    "decline_waitlist",
+    wasInvited ? "remove_invited_waitlist" : "decline_waitlist",
     {},
     {
       waitlistId,
