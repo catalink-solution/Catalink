@@ -153,6 +153,8 @@ export default async function ProductPage({ params }: PageProps) {
     product.track_stock,
     totalStockQty
   );
+  const hasSizes = (product.sizes?.length ?? 0) > 0;
+  const showPriceBadge = !hasSizes || outOfStock;
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">
@@ -175,11 +177,10 @@ export default async function ProductPage({ params }: PageProps) {
             </span>
           )}
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{product.name}</h1>
-          <p className="mt-3 text-2xl font-bold text-violet-300">
-            {formatPrice(product.price)}
-          </p>
-
-          <AvailabilityBadge className="mt-4" status={availabilityStatus} />
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="text-2xl font-bold text-violet-300">{formatPrice(product.price)}</p>
+            {showPriceBadge && <AvailabilityBadge status={availabilityStatus} />}
+          </div>
 
           {product.description && (
             <p className="mt-5 whitespace-pre-line leading-relaxed text-white/70">

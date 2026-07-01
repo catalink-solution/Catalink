@@ -175,17 +175,17 @@ export function VariantProduct({
             </span>
           )}
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{product.name}</h1>
-        <p className="mt-3 text-2xl font-bold text-violet-300">{formatPrice(displayPrice)}</p>
-
-        {allSelected && currentSku && (
-          <AvailabilityBadge
-            className="mt-4"
-            status={storefrontAvailabilityStatus(
-              true,
-              currentSku.active && currentSku.stock_quantity > 0 ? currentSku.stock_quantity : 0
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <p className="text-2xl font-bold text-violet-300">{formatPrice(displayPrice)}</p>
+            {allSelected && currentSku && (
+              <AvailabilityBadge
+                status={storefrontAvailabilityStatus(
+                  true,
+                  currentSku.active && currentSku.stock_quantity > 0 ? currentSku.stock_quantity : 0
+                )}
+              />
             )}
-          />
-        )}
+          </div>
 
         {product.description && (
           <p className="mt-5 whitespace-pre-line leading-relaxed text-white/70">

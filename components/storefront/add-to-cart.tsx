@@ -95,19 +95,21 @@ export function AddToCart({
     setTimeout(() => setAdded(false), 2500);
   }
 
-  const showAvailability = sizes.length > 0 && size != null;
-
   return (
     <div ref={actionsRef} className="relative z-10 space-y-6">
-      {showAvailability && (
-        <AvailabilityBadge
-          status={storefrontAvailabilityStatus(trackStock, available === Infinity ? 1 : available)}
-        />
-      )}
-
       {sizes.length > 0 && (
         <div className={sizeRequired ? "rounded-xl ring-2 ring-red-400/60 ring-offset-2 ring-offset-[#030712]" : ""}>
-          <p className="mb-2 text-sm font-medium text-white/70">Taille</p>
+          <div className="mb-2 flex flex-wrap items-center gap-2">
+            <p className="text-sm font-medium text-white/70">Taille</p>
+            {size != null && (
+              <AvailabilityBadge
+                status={storefrontAvailabilityStatus(
+                  trackStock,
+                  available === Infinity ? 1 : available
+                )}
+              />
+            )}
+          </div>
           <div className="flex flex-wrap gap-2">
             {sizes.map((s) => {
               const disabled = sizeDisabled(s);
