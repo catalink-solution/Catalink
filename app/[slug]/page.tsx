@@ -27,20 +27,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-const SOCIAL_GLOW: Record<string, string> = {
-  whatsapp: "#25D366",
-  snapchat: "#FFFC00",
-  telegram: "#29A9EA",
-  instagram: "#E1306C",
-  tiktok: "#25F4EE",
-};
-
 function SocialLinks({ shop }: { shop: Shop }) {
   const links = buildSocialLinks(shop);
   if (links.length === 0) return null;
 
   return (
-    <div className="mt-6 flex flex-wrap items-center gap-5 sm:gap-6">
+    <div className="mt-6 flex flex-wrap items-center justify-start gap-4 sm:gap-5">
       {links.map((l) => (
         <a
           key={l.platform}
@@ -49,13 +41,9 @@ function SocialLinks({ shop }: { shop: Shop }) {
           rel="noopener noreferrer"
           aria-label={l.label}
           title={l.label}
-          className="inline-flex"
-          style={{ ["--glow"]: SOCIAL_GLOW[l.platform] ?? "#ffffff" } as React.CSSProperties}
+          className="inline-flex shrink-0 transition-transform duration-300 ease-out hover:scale-105"
         >
-          <SocialIcon
-            platform={l.platform}
-            className="h-16 w-16 transition-all duration-300 ease-out will-change-transform hover:scale-110 hover:drop-shadow-[0_0_16px_var(--glow)] sm:h-[72px] sm:w-[72px]"
-          />
+          <SocialIcon platform={l.platform} />
         </a>
       ))}
     </div>

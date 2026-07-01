@@ -1,82 +1,47 @@
+import Image from "next/image";
+import { HERO_ASSETS } from "@/components/landing/mockups";
 import type { SocialPlatform } from "@/lib/social";
 
-const SIZE = 72;
+const PLATFORM_ASSETS: Record<SocialPlatform, string> = {
+  whatsapp: HERO_ASSETS.whatsapp,
+  snapchat: HERO_ASSETS.snapchat,
+  telegram: HERO_ASSETS.telegram,
+  instagram: HERO_ASSETS.instagram,
+  tiktok: HERO_ASSETS.tiktok,
+};
+
+const PLATFORM_GLOW: Record<SocialPlatform, string> = {
+  snapchat:
+    "drop-shadow(0 0 12px rgba(255,223,0,0.55)) drop-shadow(0 0 22px rgba(255,193,7,0.32))",
+  tiktok:
+    "drop-shadow(0 0 10px rgba(0,242,234,0.4)) drop-shadow(0 0 20px rgba(255,45,85,0.28))",
+  instagram:
+    "drop-shadow(0 0 12px rgba(236,72,153,0.48)) drop-shadow(0 0 22px rgba(249,115,22,0.3))",
+  telegram:
+    "drop-shadow(0 0 12px rgba(34,158,255,0.5)) drop-shadow(0 0 22px rgba(56,189,248,0.34))",
+  whatsapp:
+    "drop-shadow(0 0 12px rgba(37,211,102,0.48)) drop-shadow(0 0 22px rgba(34,197,94,0.32))",
+};
 
 type Props = {
   platform: SocialPlatform;
-  size?: number;
   className?: string;
 };
 
-export function SocialIcon({ platform, size = SIZE, className = "" }: Props) {
-  const common = { width: size, height: size, className, "aria-hidden": true as const };
+export function SocialIcon({ platform, className = "h-12 w-12 sm:h-14 sm:w-14 md:h-16 md:w-16" }: Props) {
+  const src = PLATFORM_ASSETS[platform];
+  if (!src) return null;
 
-  switch (platform) {
-    case "whatsapp":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" {...common}>
-          <path
-            fill="#25D366"
-            d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.435 9.884-9.884 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"
-          />
-        </svg>
-      );
-    case "instagram":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" {...common}>
-          <defs>
-            <linearGradient id="ig-grad" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#FD5949" />
-              <stop offset="50%" stopColor="#D6249F" />
-              <stop offset="100%" stopColor="#285AEB" />
-            </linearGradient>
-          </defs>
-          <rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig-grad)" />
-          <circle cx="12" cy="12" r="4.5" stroke="#fff" strokeWidth="1.8" fill="none" />
-          <circle cx="17.5" cy="6.5" r="1.2" fill="#fff" />
-        </svg>
-      );
-    case "snapchat":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" {...common}>
-          <path
-            fill="#FFFC00"
-            stroke="#1a1a1a"
-            strokeWidth="0.5"
-            d="M12 2c-2.8 0-5 2.5-5 5.5 0 1.2.3 2.3.9 3.2-.8.2-1.6.5-2.3.9-.6.3-.9.7-.7 1.2.2.4.7.5 1.2.5h.3c-.1.4-.2.8-.2 1.2 0 .8.5 1.2 1.3 1.2.4 0 .8-.1 1.2-.3.6.8 1.5 1.3 2.5 1.3s1.9-.5 2.5-1.3c.4.2.8.3 1.2.3.8 0 1.3-.4 1.3-1.2 0-.4-.1-.8-.2-1.2h.3c.5 0 1-.1 1.2-.5.2-.5-.1-.9-.7-1.2-.7-.4-1.5-.7-2.3-.9.6-.9.9-2 .9-3.2C17 4.5 14.8 2 12 2z"
-          />
-        </svg>
-      );
-    case "telegram":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" {...common}>
-          <circle cx="12" cy="12" r="12" fill="#29A9EA" />
-          <path
-            fill="#fff"
-            d="M5.5 11.8c3.6-1.6 6-2.6 7.2-3.1 3.4-1.4 4.1-1.7 4.6-1.7.1 0 .3.02.4.1.1.08.1.2.1.28-.01.08-.1.4-.5 1.9-.4 1.8-1.2 6.1-1.7 8.1-.2.8-.6 1.1-1 1.1-.8 0-2.2-.6-3.4-1.1-1.7-.7-2.7-1.1-4.3-1.8-1.9-.8-.3-1.3.4-2 .3-.3 5.1-4.7 5.2-5.1.01-.03.01-.14-.05-.2-.06-.05-.15-.03-.21-.02-.09.02-1.5.95-4.2 2.8z"
-          />
-        </svg>
-      );
-    case "tiktok":
-      return (
-        <svg viewBox="0 0 24 24" fill="none" {...common}>
-          <path
-            fill="#fff"
-            d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.76a4.85 4.85 0 01-1.01-.07z"
-          />
-          <path
-            fill="#25F4EE"
-            d="M17.82 6.62a4.83 4.83 0 01-3.77-4.18V2h-1.5v13.67a2.89 2.89 0 01-5.77 0 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.27 6.27 0 00-6.27 6.27h.01a6.27 6.27 0 006.26 6.27 6.27 6.27 0 006.26-6.27V8.62a8.18 8.18 0 004.78 1.52V6.69a4.85 4.85 0 01-1-.07z"
-            opacity="0.6"
-          />
-          <path
-            fill="#FE2C55"
-            d="M17.82 6.69a4.83 4.83 0 01-3.77-4.25V2h-1.5v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.08a6.27 6.27 0 00-.79-.05 6.27 6.27 0 00-6.27 6.27h.01a6.27 6.27 0 006.26 6.27 6.27 6.27 0 006.26-6.27V8.69a8.18 8.18 0 004.78 1.52V6.76a4.85 4.85 0 01-1.01-.07z"
-            opacity="0.6"
-          />
-        </svg>
-      );
-    default:
-      return null;
-  }
+  return (
+    <Image
+      src={src}
+      alt=""
+      width={64}
+      height={64}
+      aria-hidden
+      unoptimized
+      className={`bg-transparent object-contain ${className}`}
+      style={{ filter: PLATFORM_GLOW[platform] }}
+    />
+  );
 }
