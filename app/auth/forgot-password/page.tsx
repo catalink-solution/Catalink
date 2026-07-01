@@ -3,15 +3,9 @@
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
+import { getResetPasswordRedirectUrl } from "@/lib/auth-recovery";
 import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
 import { reportAppError } from "@/lib/report-app-error";
-
-function getResetPasswordRedirectUrl(): string {
-  const base =
-    process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ??
-    (typeof window !== "undefined" ? window.location.origin : "http://localhost:3000");
-  return `${base}/auth/reset-password`;
-}
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);

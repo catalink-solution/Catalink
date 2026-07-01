@@ -11,7 +11,8 @@ export function getSupabaseBrowser(): SupabaseClient {
   if (!browserClient) {
     browserClient = createBrowserClient(url, key, {
       auth: {
-        detectSessionInUrl: true,
+        // Parsing manuel sur /auth/callback et /auth/reset-password (évite les races).
+        detectSessionInUrl: false,
         persistSession: true,
         autoRefreshToken: true,
       },

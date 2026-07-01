@@ -8,6 +8,7 @@ export const APP_ERROR_ACTIONS = {
   AUTH_LOGIN: "auth_login",
   AUTH_PASSWORD_RESET_REQUEST: "auth_password_reset_request",
   AUTH_PASSWORD_RESET_UPDATE: "auth_password_reset_update",
+  AUTH_PASSWORD_RESET_INVALID_LINK: "auth_password_reset_invalid_link",
   WAITLIST_SUBMIT: "waitlist_submit",
   DASHBOARD_ORDERS: "dashboard_orders",
   API_EMAIL_ORDER: "api_email_order",
@@ -22,6 +23,7 @@ export const PUBLIC_APP_ERROR_ACTIONS = new Set<string>([
   APP_ERROR_ACTIONS.ORDER_CREATE,
   APP_ERROR_ACTIONS.AUTH_LOGIN,
   APP_ERROR_ACTIONS.AUTH_PASSWORD_RESET_REQUEST,
+  APP_ERROR_ACTIONS.AUTH_PASSWORD_RESET_INVALID_LINK,
   APP_ERROR_ACTIONS.WAITLIST_SUBMIT,
 ]);
 

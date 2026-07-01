@@ -5,7 +5,10 @@ import Link from "next/link";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import {
   establishSessionFromUrl,
+  inspectAuthUrl,
+  logAuthUrlDebug,
   mapPasswordUpdateError,
+  waitForRecoverySession,
 } from "@/lib/auth-recovery";
 import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
 import { reportAppError } from "@/lib/report-app-error";
@@ -13,10 +16,36 @@ import { PasswordInput } from "@/components/ui/password-input";
 
 const MIN_PASSWORD_LENGTH = 8;
 
-type PageState = "loading" | "ready" | "invalid";
+type PageState = "checking" | "ready" | "invalid";
+
+function logInvalidRecoveryLink(
+  result: Awaited<ReturnType<typeof establishSessionFromUrl>>,
+  extra?: string
+): void {
+  const debug = result.debug;
+  void reportAppError({
+    action: APP_ERROR_ACTIONS.AUTH_PASSWORD_RESET_INVALID_LINK,
+    message: result.errorMessage ?? extra ?? "recovery_session_not_established",
+    route: "/auth/reset-password",
+    metadata: {
+      has_code: debug.has_code,
+      has_token_hash: debug.has_token_hash,
+      has_token: debug.has_token,
+      has_access_token: debug.has_access_token,
+      has_refresh_token: debug.has_refresh_token,
+      type: debug.type,
+      error: debug.error,
+      error_description: debug.error_description,
+      attempts: result.attempts,
+      method: result.method,
+      error_code: result.errorCode,
+      pathname: debug.pathname,
+    },
+  });
+}
 
 export default function ResetPasswordPage() {
-  const [pageState, setPageState] = useState<PageState>("loading");
+  const [pageState, setPageState] = useState<PageState>("checking");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -25,16 +54,6 @@ export default function ResetPasswordPage() {
 
   useEffect(() => {
     let cancelled = false;
-    const supabase = getSupabaseBrowser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (cancelled) return;
-      if (event === "PASSWORD_RECOVERY" && session) {
-        setPageState("ready");
-      }
-    });
 
     async function initSession() {
       if (!isSupabaseConfigured()) {
@@ -42,34 +61,51 @@ export default function ResetPasswordPage() {
         return;
       }
 
+      const supabase = getSupabaseBrowser();
+      const debug = inspectAuthUrl();
+      logAuthUrlDebug(debug);
+
       const result = await establishSessionFromUrl(supabase);
       if (cancelled) return;
 
-      if (result === "error" || result === "none") {
-        setPageState("invalid");
+      if (result.status === "recovery" || result.status === "session") {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (user) {
+          setPageState("ready");
+          return;
+        }
+      }
+
+      if (result.status === "error") {
+        logInvalidRecoveryLink(result);
+        if (!cancelled) setPageState("invalid");
         return;
       }
 
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
+      const recovered = await waitForRecoverySession(supabase, 4000, {
+        hadRecoveryParams: result.hadRecoveryParams,
+      });
       if (cancelled) return;
 
-      if (userError || !user) {
-        setPageState("invalid");
-        return;
+      if (recovered) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (user) {
+          setPageState("ready");
+          return;
+        }
       }
 
-      setPageState("ready");
+      logInvalidRecoveryLink(result, "all_recovery_methods_exhausted");
+      setPageState("invalid");
     }
 
     void initSession();
-
-    return () => {
-      cancelled = true;
-      subscription.unsubscribe();
-    };
   }, []);
 
   useEffect(() => {
@@ -140,10 +176,10 @@ export default function ResetPasswordPage() {
     }
   }
 
-  if (pageState === "loading") {
+  if (pageState === "checking") {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#030712] p-4 text-white/60">
-        Préparation de la réinitialisation…
+        Vérification du lien…
       </main>
     );
   }
