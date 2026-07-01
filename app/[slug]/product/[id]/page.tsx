@@ -8,6 +8,7 @@ import { formatPrice } from "@/lib/format";
 import { AddToCart } from "@/components/storefront/add-to-cart";
 import { ProductGallery } from "@/components/storefront/product-gallery";
 import { VariantProduct } from "@/components/storefront/variant-product";
+import { AvailabilityBadge, storefrontAvailabilityStatus } from "@/components/storefront/availability-badge";
 import { SINGLE_SIZE } from "@/lib/stock";
 import type {
   Product,
@@ -148,6 +149,10 @@ export default async function ProductPage({ params }: PageProps) {
   for (const v of variants) stockMap[v.size] = v.stock;
   const totalStockQty = variants.reduce((s, v) => s + (v.stock ?? 0), 0);
   const outOfStock = product.track_stock && totalStockQty <= 0;
+  const availabilityStatus = storefrontAvailabilityStatus(
+    product.track_stock,
+    totalStockQty
+  );
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">
@@ -160,19 +165,21 @@ export default async function ProductPage({ params }: PageProps) {
         </Link>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2 md:items-start">
         <ProductGallery images={galleryImages} alt={product.name} />
 
-        <div className="relative z-10 flex flex-col">
+        <div className="relative z-10 flex min-w-0 flex-col">
           {product.category && (
             <span className="mb-2 text-xs uppercase tracking-widest text-white/40">
               {product.category}
             </span>
           )}
-          <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{product.name}</h1>
           <p className="mt-3 text-2xl font-bold text-violet-300">
             {formatPrice(product.price)}
           </p>
+
+          <AvailabilityBadge className="mt-4" status={availabilityStatus} />
 
           {product.description && (
             <p className="mt-5 whitespace-pre-line leading-relaxed text-white/70">
@@ -180,11 +187,7 @@ export default async function ProductPage({ params }: PageProps) {
             </p>
           )}
 
-          {outOfStock ? (
-            <div className="mt-8 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-300">
-              Produit indisponible — rupture de stock.
-            </div>
-          ) : (
+          {!outOfStock ? (
             <div className="mt-8 relative z-10">
               <AddToCart
                 slug={slug}
@@ -200,6 +203,10 @@ export default async function ProductPage({ params }: PageProps) {
                 singleSizeKey={SINGLE_SIZE}
               />
             </div>
+          ) : (
+            <p className="mt-8 text-sm text-white/50">
+              Ce produit n&apos;est pas disponible à la commande pour le moment.
+            </p>
           )}
         </div>
       </div>

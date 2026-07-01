@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Check, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useCart } from "./cart-context";
 import { ProductGallery } from "./product-gallery";
+import { AvailabilityBadge, storefrontAvailabilityStatus } from "./availability-badge";
 import { formatPrice } from "@/lib/format";
 import {
   isColorAttribute,
@@ -143,7 +144,7 @@ export function VariantProduct({
       return;
     }
     if (quantity > currentSku.stock_quantity) {
-      setError(`Stock insuffisant (${currentSku.stock_quantity} disponible(s)).`);
+      setError("Stock insuffisant pour cette quantité.");
       return;
     }
     setError(null);
@@ -164,17 +165,27 @@ export function VariantProduct({
   }
 
   return (
-    <div className="grid gap-8 md:grid-cols-2">
-      <ProductGallery key={images[0] ?? "none"} images={images} alt={product.name} />
+      <div className="grid gap-8 md:grid-cols-2 md:items-start">
+        <ProductGallery key={images[0] ?? "none"} images={images} alt={product.name} />
 
-      <div className="relative z-10 flex flex-col">
-        {product.category && (
-          <span className="mb-2 text-xs uppercase tracking-widest text-white/40">
-            {product.category}
-          </span>
-        )}
-        <h1 className="text-3xl font-extrabold tracking-tight">{product.name}</h1>
+        <div className="relative z-10 flex min-w-0 flex-col">
+          {product.category && (
+            <span className="mb-2 text-xs uppercase tracking-widest text-white/40">
+              {product.category}
+            </span>
+          )}
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{product.name}</h1>
         <p className="mt-3 text-2xl font-bold text-violet-300">{formatPrice(displayPrice)}</p>
+
+        {allSelected && currentSku && (
+          <AvailabilityBadge
+            className="mt-4"
+            status={storefrontAvailabilityStatus(
+              true,
+              currentSku.active && currentSku.stock_quantity > 0 ? currentSku.stock_quantity : 0
+            )}
+          />
+        )}
 
         {product.description && (
           <p className="mt-5 whitespace-pre-line leading-relaxed text-white/70">
@@ -256,15 +267,6 @@ export function VariantProduct({
               </div>
             );
           })}
-
-          {/* Stock de la sélection */}
-          {currentSku && (
-            <p className="text-xs text-white/50">
-              {currentSku.active && currentSku.stock_quantity > 0
-                ? `${currentSku.stock_quantity} en stock`
-                : "Rupture de stock pour cette variante"}
-            </p>
-          )}
 
           {/* Quantité */}
           <div>

@@ -4,6 +4,10 @@ import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Check, Minus, Plus, ShoppingBag } from "lucide-react";
 import { useCart } from "./cart-context";
+import {
+  AvailabilityBadge,
+  storefrontAvailabilityStatus,
+} from "./availability-badge";
 
 export function AddToCart({
   slug,
@@ -70,7 +74,7 @@ export function AddToCart({
       return;
     }
     if (trackStock && quantity > avail) {
-      showError(`Stock insuffisant (${avail} disponible${avail > 1 ? "s" : ""}).`);
+      showError("Stock insuffisant pour cette quantité.");
       return;
     }
     setError(null);
@@ -91,8 +95,16 @@ export function AddToCart({
     setTimeout(() => setAdded(false), 2500);
   }
 
+  const showAvailability = sizes.length > 0 && size != null;
+
   return (
     <div ref={actionsRef} className="relative z-10 space-y-6">
+      {showAvailability && (
+        <AvailabilityBadge
+          status={storefrontAvailabilityStatus(trackStock, available === Infinity ? 1 : available)}
+        />
+      )}
+
       {sizes.length > 0 && (
         <div className={sizeRequired ? "rounded-xl ring-2 ring-red-400/60 ring-offset-2 ring-offset-[#030712]" : ""}>
           <p className="mb-2 text-sm font-medium text-white/70">Taille</p>
@@ -124,11 +136,6 @@ export function AddToCart({
               );
             })}
           </div>
-          {trackStock && size && available !== Infinity && (
-            <p className="mt-2 text-xs text-white/50">
-              {available > 0 ? `${available} en stock` : "Épuisé"}
-            </p>
-          )}
         </div>
       )}
 
