@@ -475,7 +475,22 @@ export function AdminDashboard() {
                       </>
                     )}
                   </td>
-                  <td className="px-4 py-3">{u.productCount}</td>
+                  <td className="px-4 py-3">
+                    {u.productCount}
+                    {u.productCount > 0 && u.visibleProductCount !== u.productCount && (
+                      <span
+                        className="mt-0.5 block text-xs text-amber-300/90"
+                        title={`${u.productCount} produit(s) créé(s), ${u.visibleProductCount} visible(s) sur la boutique publique`}
+                      >
+                        Visibles : {u.visibleProductCount}
+                      </span>
+                    )}
+                    {u.productCount > 0 && u.visibleProductCount === u.productCount && (
+                      <span className="mt-0.5 block text-xs text-white/35">
+                        {u.visibleProductCount} visible{u.visibleProductCount !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">{u.orderCount}</td>
                   <td className="px-4 py-3">{formatEuro(u.revenue)}</td>
                   <td className="px-4 py-3 text-white/60">{formatDate(u.createdAt)}</td>

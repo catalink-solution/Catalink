@@ -39,7 +39,6 @@ export type AdminUserRow = {
   plan: string;
   subscriptionStatus: string;
   isSuspended: boolean;
-  productCount: number;
   orderCount: number;
   revenue: number;
   createdAt: string;
@@ -47,6 +46,10 @@ export type AdminUserRow = {
   accountStatus: "active" | "suspended" | "expired";
   isProtectedAdmin: boolean;
   role: "platform_admin" | "vendor";
+  /** Total produits en base (tous statuts). */
+  productCount: number;
+  /** Produits is_active=true (visibles storefront). */
+  visibleProductCount: number;
 };
 
 export type SubscriptionUpdate = {

@@ -236,7 +236,7 @@ export async function fetchAdminUsers(admin: SupabaseClient): Promise<AdminUserR
     admin.from("shops").select(
       "id, user_id, name, slug, plan, subscription_status, is_suspended, subscription_expires_at, created_at"
     ),
-    admin.from("products").select("shop_id"),
+    admin.from("products").select("shop_id, is_active"),
     admin.from("orders").select("shop_id, total, status"),
   ]);
 
@@ -246,9 +246,13 @@ export async function fetchAdminUsers(admin: SupabaseClient): Promise<AdminUserR
     if (s.user_id) shopByUser.set(s.user_id, s);
   }
 
-  const productCount = new Map<string, number>();
-  for (const p of (productsRes.data ?? []) as { shop_id: string }[]) {
-    productCount.set(p.shop_id, (productCount.get(p.shop_id) ?? 0) + 1);
+  const productTotalCount = new Map<string, number>();
+  const productVisibleCount = new Map<string, number>();
+  for (const p of (productsRes.data ?? []) as { shop_id: string; is_active: boolean }[]) {
+    productTotalCount.set(p.shop_id, (productTotalCount.get(p.shop_id) ?? 0) + 1);
+    if (p.is_active) {
+      productVisibleCount.set(p.shop_id, (productVisibleCount.get(p.shop_id) ?? 0) + 1);
+    }
   }
 
   const orderStats = new Map<string, { count: number; revenue: number }>();
@@ -277,7 +281,8 @@ export async function fetchAdminUsers(admin: SupabaseClient): Promise<AdminUserR
         isSuspended: isProtectedAdmin ? false : Boolean(shop?.is_suspended || banned),
         isProtectedAdmin,
         role: isProtectedAdmin ? "platform_admin" : "vendor",
-        productCount: shop ? productCount.get(shop.id) ?? 0 : 0,
+        productCount: shop ? productTotalCount.get(shop.id) ?? 0 : 0,
+        visibleProductCount: shop ? productVisibleCount.get(shop.id) ?? 0 : 0,
         orderCount: stats?.count ?? 0,
         revenue: stats?.revenue ?? 0,
         createdAt: u.created_at,

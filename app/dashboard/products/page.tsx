@@ -22,6 +22,7 @@ import {
   type VariantDraft,
 } from "@/lib/variant-store";
 import { ContextualTip } from "@/components/dashboard/contextual-tip";
+import { productVisibilityLabel } from "@/lib/storefront-products";
 import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
 import { reportAppError } from "@/lib/report-app-error";
 
@@ -872,7 +873,7 @@ export default function ProductsPage() {
                 />
               </button>
               <span className="text-xs text-white/40 flex-1">
-                {product.is_active ? "Actif" : "Inactif"}
+                {productVisibilityLabel(product.is_active)}
               </span>
 
               {/* Modifier */}

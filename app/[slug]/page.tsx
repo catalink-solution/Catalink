@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { fetchStorefrontShopBySlug } from "@/lib/storefront-shop";
+import { logStorefrontProductDiagnostic } from "@/lib/storefront-products";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { buildSocialLinks } from "@/lib/social";
 import { SocialIcon } from "@/components/storefront/social-icon";
 import { ProductCatalog } from "@/components/storefront/product-catalog";
@@ -67,6 +69,11 @@ export default async function PublicShopPage({ params }: PageProps) {
 
   const list = (productData ?? []) as Product[];
 
+  const admin = createAdminClient();
+  if (admin) {
+    await logStorefrontProductDiagnostic(admin, shop.id, slug, list.length);
+  }
+
   const { data: categoryData } = await supabase
     .from("product_categories")
     .select("*")
@@ -125,7 +132,7 @@ export default async function PublicShopPage({ params }: PageProps) {
         </div>
       </section>
 
-      <ProductCatalog slug={slug} products={list} categories={categories} />
+      <ProductCatalog slug={slug} shopId={shop.id} products={list} categories={categories} />
 
       <ReviewsSection
         slug={slug}
