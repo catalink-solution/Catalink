@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { supabase } from "@/lib/supabase";
 import { fetchStorefrontShopBySlug } from "@/lib/storefront-shop";
-import { logStorefrontProductDiagnostic } from "@/lib/storefront-products";
+import { fetchStorefrontProducts } from "@/lib/storefront-products";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { buildSocialLinks } from "@/lib/social";
 import { SocialIcon } from "@/components/storefront/social-icon";
@@ -60,19 +60,11 @@ export default async function PublicShopPage({ params }: PageProps) {
   const shop = shopData as Shop | null;
   if (!shop) notFound();
 
-  const { data: productData } = await supabase
-    .from("products")
-    .select("*")
-    .eq("shop_id", shop.id)
-    .eq("is_active", true)
-    .order("created_at", { ascending: false });
-
-  const list = (productData ?? []) as Product[];
-
   const admin = createAdminClient();
-  if (admin) {
-    await logStorefrontProductDiagnostic(admin, shop.id, slug, list.length);
-  }
+  const { products: list } = await fetchStorefrontProducts(supabase, shop.id, slug, {
+    admin,
+    shopName: shop.name,
+  });
 
   const { data: categoryData } = await supabase
     .from("product_categories")
