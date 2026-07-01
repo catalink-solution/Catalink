@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { isPublicSignupAllowed } from "@/lib/signup-config";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export function RegisterForm() {
   const [email, setEmail] = useState("");
@@ -83,10 +84,8 @@ export function RegisterForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <input
-            className="input"
+          <PasswordInput
             placeholder="Mot de passe (min. 6 caractères)"
-            type="password"
             name="password"
             autoComplete="new-password"
             value={password}

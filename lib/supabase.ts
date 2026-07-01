@@ -9,7 +9,13 @@ let browserClient: SupabaseClient | undefined;
 /** Client navigateur — à appeler uniquement côté client (handlers, effects). */
 export function getSupabaseBrowser(): SupabaseClient {
   if (!browserClient) {
-    browserClient = createBrowserClient(url, key);
+    browserClient = createBrowserClient(url, key, {
+      auth: {
+        detectSessionInUrl: true,
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+    });
   }
   return browserClient;
 }

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { PwaRegister } from "@/components/pwa-register";
+import { PwaStaleGuard } from "@/components/pwa-stale-guard";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -85,6 +86,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <PwaRegister />
+        <PwaStaleGuard />
         {children}
       </body>
     </html>

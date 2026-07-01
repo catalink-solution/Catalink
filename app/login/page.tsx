@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
 import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
 import { reportAppError } from "@/lib/report-app-error";
+import { PasswordInput } from "@/components/ui/password-input";
 
 function loginErrorMessage(code: string | null): string | null {
   switch (code) {
@@ -134,10 +135,9 @@ function LoginForm() {
           </label>
           <label className="block">
             <span className="sr-only">Mot de passe</span>
-            <input
-              className="input login-field min-h-[48px] text-base"
+            <PasswordInput
+              className="login-field min-h-[48px] text-base"
               placeholder="Mot de passe"
-              type="password"
               name="password"
               autoComplete="current-password"
               enterKeyHint="go"

@@ -3,15 +3,15 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
+import {
+  establishSessionFromUrl,
+  mapPasswordUpdateError,
+} from "@/lib/auth-recovery";
 import { APP_ERROR_ACTIONS } from "@/lib/app-error-log";
 import { reportAppError } from "@/lib/report-app-error";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const MIN_PASSWORD_LENGTH = 8;
-
-function parseHashParams(hash: string) {
-  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
-  return new URLSearchParams(raw);
-}
 
 type PageState = "loading" | "ready" | "invalid";
 
@@ -24,57 +24,52 @@ export default function ResetPasswordPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    const supabase = getSupabaseBrowser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (cancelled) return;
+      if (event === "PASSWORD_RECOVERY" && session) {
+        setPageState("ready");
+      }
+    });
+
     async function initSession() {
       if (!isSupabaseConfigured()) {
+        if (!cancelled) setPageState("invalid");
+        return;
+      }
+
+      const result = await establishSessionFromUrl(supabase);
+      if (cancelled) return;
+
+      if (result === "error" || result === "none") {
         setPageState("invalid");
         return;
       }
 
-      const supabase = getSupabaseBrowser();
-      const url = new URL(window.location.href);
-
-      const code = url.searchParams.get("code");
-      if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) {
-          setPageState("invalid");
-          return;
-        }
-        window.history.replaceState({}, "", "/auth/reset-password");
-        setPageState("ready");
-        return;
-      }
-
-      const hashParams = parseHashParams(window.location.hash);
-      const accessToken = hashParams.get("access_token");
-      const refreshToken = hashParams.get("refresh_token");
-
-      if (accessToken && refreshToken) {
-        const { error } = await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
-        if (error) {
-          setPageState("invalid");
-          return;
-        }
-        window.history.replaceState({}, "", "/auth/reset-password");
-        setPageState("ready");
-        return;
-      }
-
       const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (session) {
-        setPageState("ready");
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+      if (cancelled) return;
+
+      if (userError || !user) {
+        setPageState("invalid");
         return;
       }
 
-      setPageState("invalid");
+      setPageState("ready");
     }
 
     void initSession();
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {
@@ -85,9 +80,14 @@ export default function ResetPasswordPage() {
     return () => window.clearTimeout(timer);
   }, [success]);
 
+  const formValid =
+    password.length >= MIN_PASSWORD_LENGTH &&
+    confirm.length >= MIN_PASSWORD_LENGTH &&
+    password === confirm;
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (loading || success) return;
+    if (loading || success || pageState !== "ready") return;
 
     if (password.length < MIN_PASSWORD_LENGTH) {
       setMessage("Le mot de passe doit contenir au moins 8 caractères.");
@@ -103,6 +103,19 @@ export default function ResetPasswordPage() {
 
     try {
       const supabase = getSupabaseBrowser();
+
+      await supabase.auth.refreshSession();
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setMessage("Ta session a expiré. Demande un nouveau lien.");
+        setLoading(false);
+        return;
+      }
+
       const { error } = await supabase.auth.updateUser({ password });
       if (error) {
         void reportAppError({
@@ -110,10 +123,11 @@ export default function ResetPasswordPage() {
           message: error.message,
           metadata: { code: error.code },
         });
-        setMessage("Impossible de mettre à jour le mot de passe. Réessaie ou demande un nouveau lien.");
+        setMessage(mapPasswordUpdateError(error.message, error.code));
         setLoading(false);
         return;
       }
+
       setSuccess(true);
       setLoading(false);
     } catch (err) {
@@ -179,33 +193,29 @@ export default function ResetPasswordPage() {
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-3" noValidate>
-            <input
-              className="input"
+            <PasswordInput
               placeholder="Nouveau mot de passe *"
-              type="password"
               name="password"
               autoComplete="new-password"
               required
               minLength={MIN_PASSWORD_LENGTH}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
+              disabled={loading || pageState !== "ready"}
             />
-            <input
-              className="input"
+            <PasswordInput
               placeholder="Confirmer le mot de passe *"
-              type="password"
               name="confirmPassword"
               autoComplete="new-password"
               required
               minLength={MIN_PASSWORD_LENGTH}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              disabled={loading}
+              disabled={loading || pageState !== "ready"}
             />
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || pageState !== "ready" || !formValid}
               className="btn-touch w-full rounded-xl px-5 py-3 font-bold text-white transition-all disabled:opacity-50"
               style={{ background: "linear-gradient(to right,#3b82f6,#7c3aed)" }}
             >

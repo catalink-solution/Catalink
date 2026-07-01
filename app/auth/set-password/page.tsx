@@ -4,6 +4,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser, isSupabaseConfigured } from "@/lib/supabase";
+import { PasswordInput } from "@/components/ui/password-input";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -84,10 +85,8 @@ export default function SetPasswordPage() {
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-3" noValidate>
-          <input
-            className="input"
+          <PasswordInput
             placeholder="Mot de passe *"
-            type="password"
             name="password"
             autoComplete="new-password"
             required
@@ -95,10 +94,8 @@ export default function SetPasswordPage() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <input
-            className="input"
+          <PasswordInput
             placeholder="Confirmer le mot de passe *"
-            type="password"
             name="confirmPassword"
             autoComplete="new-password"
             required
